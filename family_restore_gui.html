@@ -49,9 +49,10 @@
     button {
       border: 0;
       border-radius: 999px;
-      padding: 10px 14px;
+      padding: 8px 12px;
       cursor: pointer;
       transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
+      line-height: 1.2;
     }
 
     button:hover:not(:disabled) {
@@ -66,8 +67,8 @@
     .shell {
       display: grid;
       grid-template-columns: 330px 1fr;
-      gap: 22px;
-      padding: 22px;
+      gap: 16px;
+      padding: 16px;
       height: 100vh;
       overflow: hidden;
     }
@@ -85,19 +86,20 @@
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
-      padding: 20px;
-      gap: 14px;
+      padding: 16px;
+      gap: 10px;
     }
 
     .sidebar h1 {
-      margin: 0 0 6px;
-      font-size: 1.55rem;
+      margin: 0 0 4px;
+      font-size: 1.42rem;
     }
 
     .subtle {
       margin: 0;
       color: var(--muted);
       line-height: 1.4;
+      font-size: 0.91rem;
     }
 
     .folder-card,
@@ -106,12 +108,12 @@
       border: 1px solid rgba(73, 52, 31, 0.08);
       border-radius: 18px;
       background: rgba(255, 255, 255, 0.48);
-      padding: 14px;
+      padding: 11px 12px;
     }
 
     .folder-card {
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .folder-path {
@@ -119,7 +121,7 @@
       line-height: 1.35;
       word-break: break-word;
       color: var(--text);
-      min-height: 40px;
+      min-height: 28px;
     }
 
     .inline-actions,
@@ -128,7 +130,7 @@
     .reference-actions,
     .auto-actions {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       align-items: center;
     }
@@ -158,7 +160,7 @@
       border: 1px solid var(--line);
       background: rgba(255, 255, 255, 0.74);
       border-radius: 14px;
-      padding: 11px 13px;
+      padding: 9px 12px;
       color: var(--text);
     }
 
@@ -168,19 +170,19 @@
       overflow: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       padding-right: 4px;
     }
 
     .image-item {
       display: grid;
       grid-template-columns: 54px 1fr auto;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
       border-radius: 16px;
       border: 1px solid transparent;
       background: rgba(255, 255, 255, 0.6);
-      padding: 10px;
+      padding: 8px;
       text-align: left;
     }
 
@@ -226,54 +228,95 @@
 
     .main {
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto;
-      gap: 14px;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
       min-height: 0;
       overflow: hidden;
-      padding: 20px;
+      padding: 16px;
     }
 
     .toolbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
     }
 
     .title-block h2 {
       margin: 0;
-      font-size: 1.2rem;
+      font-size: 1.08rem;
     }
 
     .title-block p {
       margin: 4px 0 0;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .grid-two {
       display: grid;
-      grid-template-columns: 1.25fr 0.95fr;
-      gap: 14px;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+      gap: 10px;
       align-items: stretch;
+    }
+
+    .control-box {
+      border: 1px solid rgba(73, 52, 31, 0.08);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.42);
+      overflow: hidden;
+    }
+
+    .control-box summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      user-select: none;
+    }
+
+    .control-box summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .control-box summary::after {
+      content: "Show";
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .control-box[open] summary::after {
+      content: "Hide";
+    }
+
+    .control-box-body {
+      padding: 0 2px 2px;
     }
 
     .config-card {
       display: grid;
-      gap: 12px;
+      gap: 10px;
       min-height: 0;
     }
 
     .auto-card {
       display: grid;
-      gap: 12px;
+      gap: 10px;
+      align-content: start;
     }
 
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px;
     }
 
     .field {
@@ -287,7 +330,7 @@
     }
 
     label {
-      font-size: 0.86rem;
+      font-size: 0.8rem;
       color: var(--muted);
     }
 
@@ -304,12 +347,12 @@
 
     textarea {
       resize: none;
-      min-height: 112px;
+      min-height: 82px;
     }
 
     .toggle-row {
       display: flex;
-      gap: 18px;
+      gap: 14px;
       align-items: center;
       flex-wrap: wrap;
     }
@@ -329,14 +372,14 @@
     .reference-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 10px;
     }
 
     .reference-preview {
       border: 1px solid rgba(73, 52, 31, 0.08);
       border-radius: 16px;
       background: rgba(255, 255, 255, 0.45);
-      height: 108px;
+      height: 84px;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -356,8 +399,8 @@
     .preview-grid {
       min-height: 0;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(0, 0.9fr);
+      gap: 10px;
       overflow: hidden;
     }
 
@@ -365,17 +408,32 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       border: 1px solid rgba(73, 52, 31, 0.08);
       border-radius: 18px;
       background: rgba(255, 255, 255, 0.45);
-      padding: 14px;
+      padding: 10px;
       overflow: hidden;
     }
 
     .preview-card h3 {
       margin: 0;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .preview-open {
+      padding: 5px 10px;
+      border-radius: 10px;
+      background: rgba(115, 89, 58, 0.12);
+      color: var(--text);
+      font-size: 0.78rem;
     }
 
     .preview-frame {
@@ -388,6 +446,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      min-height: 300px;
     }
 
     .preview-frame img {
@@ -402,16 +461,16 @@
     }
 
     .placeholder {
-      padding: 16px;
+      padding: 12px;
       text-align: center;
       color: var(--muted);
       line-height: 1.4;
     }
 
     .status-line {
-      min-height: 24px;
+      min-height: 18px;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.88rem;
     }
 
     .log {
@@ -419,11 +478,12 @@
       border-radius: 16px;
       background: rgba(46, 33, 22, 0.92);
       color: #f7efe3;
-      padding: 12px 14px;
+      padding: 10px 12px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.83rem;
+      font-size: 0.79rem;
       line-height: 1.45;
-      min-height: 72px;
+      min-height: 54px;
+      max-height: 90px;
       overflow: auto;
     }
 
@@ -485,6 +545,76 @@
       background: rgba(255, 255, 255, 0.68);
       padding: 10px 12px;
       text-align: left;
+    }
+
+    .image-modal-panel {
+      width: min(96vw, 1500px);
+      height: min(94vh, 1100px);
+      background: rgba(30, 21, 14, 0.97);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      padding: 16px;
+    }
+
+    .image-modal-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #f7efe3;
+    }
+
+    .image-modal-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .image-modal-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .image-modal-actions button {
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #f7efe3;
+    }
+
+    .image-modal-actions button.hidden {
+      display: none;
+    }
+
+    .image-modal-zoom {
+      min-width: 46px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: rgba(247, 239, 227, 0.8);
+    }
+
+    .image-modal-frame {
+      min-height: 0;
+      overflow: auto;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .image-modal-frame img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform-origin: center center;
+      transition: transform 140ms ease;
     }
 
     @media (max-width: 1200px) {
@@ -562,106 +692,124 @@
         </div>
       </section>
 
-      <section class="grid-two">
-        <article class="config-card">
-          <div class="settings-grid">
-            <div class="field full">
-              <label for="prompt-text">Prompt</label>
-              <textarea id="prompt-text" placeholder="Editable family-photo restoration guidance."></textarea>
-            </div>
-            <div class="field full">
-              <label for="extra-note">Extra note</label>
-              <input id="extra-note" type="text" placeholder="Optional photo-specific note">
-            </div>
-            <div class="field full">
-              <label>Output sizing</label>
-              <div class="folder-path">Restored output is always normalized back to the exact source image dimensions and saved beside the original as <code>_rNN.png</code>.</div>
-            </div>
-          </div>
+      <details id="control-box" class="control-box" open>
+        <summary>Settings And Automatic Processing</summary>
+        <div class="control-box-body">
+          <section class="grid-two">
+            <article class="config-card">
+              <div class="settings-grid">
+                <div class="field full">
+                  <label for="prompt-text">Prompt</label>
+                  <textarea id="prompt-text" placeholder="Editable family-photo restoration guidance."></textarea>
+                </div>
+                <div class="field full">
+                  <label for="extra-note">Extra note</label>
+                  <input id="extra-note" type="text" placeholder="Optional photo-specific note">
+                </div>
+                <div class="field full">
+                  <label>Output sizing</label>
+                  <div class="folder-path">Restored output is always normalized back to the exact source image dimensions and saved beside the original as <code>_rNN.png</code>.</div>
+                </div>
+              </div>
 
-          <div class="toggle-row">
-            <label class="toggle"><input id="colorize" type="checkbox"> Colorize</label>
-            <label class="toggle"><input id="overwrite-existing" type="checkbox"> Overwrite latest <code>_rNN</code></label>
-          </div>
+              <div class="toggle-row">
+                <label class="toggle"><input id="colorize" type="checkbox"> Colorize</label>
+                <label class="toggle"><input id="overwrite-existing" type="checkbox"> Overwrite latest <code>_rNN</code></label>
+              </div>
 
-          <div class="settings-grid">
-            <div class="field full">
-              <label for="reference-image">Primary reference</label>
-              <input id="reference-image" type="text" placeholder="Uploaded reference path">
-            </div>
-            <div class="field full">
-              <label for="reference-image-2">Secondary reference</label>
-              <input id="reference-image-2" type="text" placeholder="Uploaded second reference path">
-            </div>
-          </div>
+              <div class="settings-grid">
+                <div class="field full">
+                  <label for="reference-image">Primary face reference</label>
+                  <input id="reference-image" type="text" placeholder="Uploaded clearer photo of the same people">
+                </div>
+                <div class="field full">
+                  <label for="reference-image-2">Secondary face reference</label>
+                  <input id="reference-image-2" type="text" placeholder="Optional second clearer photo of the same people">
+                </div>
+                <div class="field full">
+                  <label>Reference use</label>
+                  <div class="folder-path">Use a clearer photo of the same people when the target is blurry. The app will use the reference for face detail and identity, while keeping the target photo’s pose and composition.</div>
+                </div>
+              </div>
 
-          <div class="reference-actions">
-            <button id="choose-reference-button" class="secondary" type="button">Upload Primary Reference</button>
-            <button id="choose-reference-button-2" class="secondary" type="button">Upload Secondary Reference</button>
-            <input id="reference-file-input" type="file" accept=".png,.jpg,.jpeg,.webp" hidden>
-            <input id="reference-file-input-2" type="file" accept=".png,.jpg,.jpeg,.webp" hidden>
-          </div>
+              <div class="reference-actions">
+                <button id="choose-reference-button" class="secondary" type="button">Upload Primary Reference</button>
+                <button id="choose-reference-button-2" class="secondary" type="button">Upload Secondary Reference</button>
+                <input id="reference-file-input" type="file" accept=".png,.jpg,.jpeg,.webp" hidden>
+                <input id="reference-file-input-2" type="file" accept=".png,.jpg,.jpeg,.webp" hidden>
+              </div>
 
-          <div class="reference-row">
-            <div class="reference-preview"><img id="reference-preview-image" alt="Primary reference preview"></div>
-            <div class="reference-preview"><img id="reference-preview-image-2" alt="Secondary reference preview"></div>
-          </div>
-        </article>
+              <div class="reference-row">
+                <div class="reference-preview"><img id="reference-preview-image" alt="Primary reference preview"></div>
+                <div class="reference-preview"><img id="reference-preview-image-2" alt="Secondary reference preview"></div>
+              </div>
+            </article>
 
-        <article class="config-card auto-card">
-          <div class="settings-grid">
-            <div class="field">
-              <label for="auto-pause-seconds">Auto pause seconds</label>
-              <input id="auto-pause-seconds" type="number" min="0" max="600" step="1">
-            </div>
-            <div class="field">
-              <label>Mode</label>
-              <div id="mode-summary" class="folder-path">Manual mode when pause is 0.</div>
-            </div>
-          </div>
+            <article class="config-card auto-card">
+              <div class="settings-grid">
+                <div class="field">
+                  <label for="auto-pause-seconds">Auto pause seconds</label>
+                  <input id="auto-pause-seconds" type="number" min="0" max="600" step="1">
+                </div>
+                <div class="field">
+                  <label>Mode</label>
+                  <div id="mode-summary" class="folder-path">Manual mode when pause is 0.</div>
+                </div>
+              </div>
 
-          <div class="toggle-row">
-            <label class="toggle"><input id="auto-include-restored" type="checkbox"> Include already restored photos</label>
-          </div>
+              <div class="toggle-row">
+                <label class="toggle"><input id="auto-include-restored" type="checkbox"> Include already restored photos</label>
+              </div>
 
-          <div class="auto-actions">
-            <button id="start-auto-button" class="secondary" type="button">Start Automatic Processing</button>
-            <button id="stop-auto-button" class="danger" type="button" disabled>Stop Automatic Processing</button>
-          </div>
+              <div class="auto-actions">
+                <button id="start-auto-button" class="secondary" type="button">Start Automatic Processing</button>
+                <button id="stop-auto-button" class="danger" type="button" disabled>Stop Automatic Processing</button>
+              </div>
 
-          <section class="status-card">
-            <div class="field">
-              <label>Automatic processing status</label>
-              <div id="process-status" class="folder-path">Idle.</div>
-            </div>
+              <section class="status-card">
+                <div class="field">
+                  <label>Automatic processing status</label>
+                  <div id="process-status" class="folder-path">Idle.</div>
+                </div>
+              </section>
+
+              <section class="status-card">
+                <div class="field">
+                  <label>Selected output</label>
+                  <div id="selected-output" class="folder-path">No output yet.</div>
+                </div>
+              </section>
+            </article>
           </section>
-
-          <section class="status-card">
-            <div class="field">
-              <label>Selected output</label>
-              <div id="selected-output" class="folder-path">No output yet.</div>
-            </div>
-          </section>
-        </article>
-      </section>
+        </div>
+      </details>
 
       <section class="preview-grid">
         <article class="preview-card">
-          <h3>Original</h3>
+          <div class="preview-header">
+            <h3>Original</h3>
+            <button id="original-open-button" class="preview-open" type="button">Open</button>
+          </div>
           <div class="preview-frame">
             <img id="original-image" alt="Original image preview">
             <div id="original-placeholder" class="placeholder">Select an image to preview the original.</div>
           </div>
         </article>
         <article class="preview-card">
-          <h3>Latest Restored</h3>
+          <div class="preview-header">
+            <h3>Latest Restored</h3>
+            <button id="restored-open-button" class="preview-open" type="button">Open</button>
+          </div>
           <div class="preview-frame">
             <img id="restored-image" alt="Restored image preview">
             <div id="restored-placeholder" class="placeholder">Run a restore to preview the latest output.</div>
           </div>
         </article>
         <article class="preview-card">
-          <h3>Compare</h3>
+          <div class="preview-header">
+            <h3>Compare</h3>
+            <button id="compare-open-button" class="preview-open" type="button">Open</button>
+          </div>
           <div class="preview-frame">
             <img id="compare-image" alt="Comparison preview">
             <div id="compare-placeholder" class="placeholder">A temporary compare strip appears after a restore.</div>
@@ -697,6 +845,28 @@
     </div>
   </div>
 
+  <div id="image-modal" class="modal" aria-hidden="true">
+    <div class="image-modal-panel">
+      <div class="image-modal-toolbar">
+        <div id="image-modal-title" class="image-modal-title">Preview</div>
+        <div class="image-modal-actions">
+          <button id="image-modal-fit" type="button">Fit</button>
+          <button id="image-modal-zoom-out" type="button">-</button>
+          <button id="image-modal-zoom-reset" type="button">100%</button>
+          <button id="image-modal-zoom-in" type="button">+</button>
+          <button id="image-modal-rotate-left" type="button">Rotate Left</button>
+          <button id="image-modal-rotate-right" type="button">Rotate Right</button>
+          <button id="image-modal-save" class="hidden" type="button">Save</button>
+          <div id="image-modal-zoom-label" class="image-modal-zoom">100%</div>
+          <button id="image-modal-close" type="button">Close</button>
+        </div>
+      </div>
+      <div class="image-modal-frame">
+        <img id="image-modal-img" alt="Expanded preview">
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       config: null,
@@ -711,6 +881,14 @@
       processStatus: null,
       autosaveTimer: null,
       processPollTimer: null,
+      imageModal: {
+        kind: null,
+        scale: 1,
+        rotation: 0,
+        dirty: false,
+        url: "",
+        path: "",
+      },
     };
 
     const imageListEl = document.getElementById("image-list");
@@ -737,6 +915,7 @@
     const comparePlaceholderEl = document.getElementById("compare-placeholder");
     const referencePreviewImageEl = document.getElementById("reference-preview-image");
     const referencePreviewImageEl2 = document.getElementById("reference-preview-image-2");
+    const controlBoxEl = document.getElementById("control-box");
 
     const folderModalEl = document.getElementById("folder-modal");
     const browserPathEl = document.getElementById("browser-path");
@@ -745,6 +924,14 @@
     const browserGoButtonEl = document.getElementById("browser-go-button");
     const browserUpButtonEl = document.getElementById("browser-up-button");
     const browserSelectButtonEl = document.getElementById("browser-select-button");
+    const imageModalEl = document.getElementById("image-modal");
+    const imageModalImgEl = document.getElementById("image-modal-img");
+    const imageModalTitleEl = document.getElementById("image-modal-title");
+    const imageModalZoomLabelEl = document.getElementById("image-modal-zoom-label");
+    const imageModalRotateLeftEl = document.getElementById("image-modal-rotate-left");
+    const imageModalRotateRightEl = document.getElementById("image-modal-rotate-right");
+    const imageModalSaveEl = document.getElementById("image-modal-save");
+    const CONTROL_BOX_STORAGE_KEY = "photoRestorer.controlBoxOpen";
 
     function currentImage() {
       return state.images.find((item) => item.filename === state.selectedFilename) || null;
@@ -760,6 +947,92 @@
         imgEl.classList.remove("visible");
         placeholderEl.style.display = "block";
       }
+    }
+
+    function imageModalIsEditable() {
+      return state.imageModal.kind === "original" || state.imageModal.kind === "restored";
+    }
+
+    function updateImageModalControls() {
+      const editable = imageModalIsEditable();
+      imageModalRotateLeftEl.classList.toggle("hidden", !editable);
+      imageModalRotateRightEl.classList.toggle("hidden", !editable);
+      imageModalSaveEl.classList.toggle("hidden", !(editable && state.imageModal.dirty));
+    }
+
+    function updateImageModalZoom() {
+      imageModalImgEl.style.transform = `rotate(${state.imageModal.rotation}deg) scale(${state.imageModal.scale})`;
+      imageModalZoomLabelEl.textContent = `${Math.round(state.imageModal.scale * 100)}%`;
+      updateImageModalControls();
+    }
+
+    function setImageModalZoom(scale) {
+      state.imageModal.scale = Math.max(0.5, Math.min(4, Number(scale.toFixed(2))));
+      updateImageModalZoom();
+    }
+
+    function openImageModal(kind) {
+      const item = currentImage();
+      if (!item) return;
+      const title = kind === "original" ? "Original" : kind === "restored" ? "Latest Restored" : "Compare";
+      const url = kind === "original" ? item.source_url : kind === "restored" ? item.latest_restore_url : item.compare_url;
+      const path = kind === "original" ? item.source_path : kind === "restored" ? item.latest_restore_path : "";
+      if (!url) return;
+      state.imageModal.kind = kind;
+      state.imageModal.url = url;
+      state.imageModal.path = path || "";
+      state.imageModal.scale = 1;
+      state.imageModal.rotation = 0;
+      state.imageModal.dirty = false;
+      imageModalTitleEl.textContent = `${title}: ${item.filename}`;
+      imageModalImgEl.src = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      updateImageModalZoom();
+      imageModalEl.classList.add("open");
+      imageModalEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeImageModal() {
+      imageModalEl.classList.remove("open");
+      imageModalEl.setAttribute("aria-hidden", "true");
+      imageModalImgEl.removeAttribute("src");
+      state.imageModal.kind = null;
+      state.imageModal.url = "";
+      state.imageModal.path = "";
+      state.imageModal.scale = 1;
+      state.imageModal.rotation = 0;
+      state.imageModal.dirty = false;
+    }
+
+    function rotateImageModal(delta) {
+      if (!imageModalIsEditable()) return;
+      state.imageModal.rotation = ((state.imageModal.rotation + delta) % 360 + 360) % 360;
+      state.imageModal.dirty = state.imageModal.rotation !== 0;
+      updateImageModalZoom();
+    }
+
+    async function saveImageModalRotation() {
+      if (!imageModalIsEditable() || !state.imageModal.dirty || !state.imageModal.path) {
+        return;
+      }
+      const response = await fetch("/api/rotate-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: state.imageModal.path,
+          clockwise_degrees: state.imageModal.rotation,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Failed to save rotation");
+      }
+      state.imageModal.url = payload.file_url;
+      state.imageModal.rotation = 0;
+      state.imageModal.dirty = false;
+      imageModalImgEl.src = `${payload.file_url}${payload.file_url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      updateImageModalZoom();
+      await loadImages();
+      statusLineEl.textContent = "Rotated image saved.";
     }
 
     function setReferencePreview(url, imageEl) {
@@ -1228,6 +1501,13 @@
     document.getElementById("choose-reference-button").addEventListener("click", () => {
       document.getElementById("reference-file-input").click();
     });
+    controlBoxEl.addEventListener("toggle", () => {
+      try {
+        window.localStorage.setItem(CONTROL_BOX_STORAGE_KEY, controlBoxEl.open ? "open" : "closed");
+      } catch (error) {
+        // Ignore storage failures; the UI should still work.
+      }
+    });
     document.getElementById("choose-reference-button-2").addEventListener("click", () => {
       document.getElementById("reference-file-input-2").click();
     });
@@ -1253,9 +1533,45 @@
         event.target.value = "";
       }
     });
+    document.getElementById("restored-open-button").addEventListener("click", () => openImageModal("restored"));
+    document.getElementById("original-open-button").addEventListener("click", () => openImageModal("original"));
+    document.getElementById("compare-open-button").addEventListener("click", () => openImageModal("compare"));
+    originalImageEl.addEventListener("click", () => openImageModal("original"));
+    restoredImageEl.addEventListener("click", () => openImageModal("restored"));
+    compareImageEl.addEventListener("click", () => openImageModal("compare"));
+    document.getElementById("image-modal-fit").addEventListener("click", () => setImageModalZoom(1));
+    document.getElementById("image-modal-zoom-out").addEventListener("click", () => setImageModalZoom(state.imageModal.scale - 0.25));
+    document.getElementById("image-modal-zoom-reset").addEventListener("click", () => setImageModalZoom(1));
+    document.getElementById("image-modal-zoom-in").addEventListener("click", () => setImageModalZoom(state.imageModal.scale + 0.25));
+    imageModalRotateLeftEl.addEventListener("click", () => rotateImageModal(-90));
+    imageModalRotateRightEl.addEventListener("click", () => rotateImageModal(90));
+    imageModalSaveEl.addEventListener("click", () => saveImageModalRotation().catch((error) => {
+      statusLineEl.textContent = error.message;
+    }));
+    document.getElementById("image-modal-close").addEventListener("click", closeImageModal);
+    imageModalEl.addEventListener("click", (event) => {
+      if (event.target === imageModalEl) {
+        closeImageModal();
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && imageModalEl.classList.contains("open")) {
+        closeImageModal();
+      }
+    });
 
     async function boot() {
       try {
+        try {
+          const saved = window.localStorage.getItem(CONTROL_BOX_STORAGE_KEY);
+          if (saved === "closed") {
+            controlBoxEl.open = false;
+          } else if (saved === "open") {
+            controlBoxEl.open = true;
+          }
+        } catch (error) {
+          // Ignore storage failures; the default open state is acceptable.
+        }
         await loadConfig();
         await loadImages();
         await loadProcessStatus();

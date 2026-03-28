@@ -60,13 +60,14 @@ Hard requirements:
 - Preserve the exact facial identity, age cues, expression, and number of people from the target photo.
 - Preserve the exact pose, head direction, body position, hand placement, silhouette, framing, and camera viewpoint from the target photo.
 - Repair fading, scratches, tears, stains, discoloration, and age damage carefully while keeping the image natural and believable.
+- If the target photo is blurry or facial detail is weak, and a reference photo of the same people is provided, use that reference to recover facial identity and realistic face detail while still matching the target photo's pose, head direction, age, and expression.
 - Treat this as restoration, not reimagining. Do not invent extra people, limbs, props, scenery, jewelry, or modern details.
 - If reference images are provided, use them only for identity reinforcement, hair, clothing, and color guidance. Never copy pose, framing, or extra bodies from references.
 """
 
 DEFAULT_USER_PROMPT = """Restore the target photograph carefully while preserving its original composition, facial identity, pose, and historical character.
 
-Repair fading, scratches, stains, tears, discoloration, blur, and age damage where possible. Keep the result restrained, natural, and period-appropriate.
+Repair fading, scratches, stains, tears, discoloration, blur, and age damage where possible. If a clearer reference photo of the same people is provided, use it to recover facial identity and face detail while keeping the target photo's pose and composition. Keep the result restrained, natural, and period-appropriate.
 """
 
 
@@ -443,6 +444,40 @@ def create_compare_image(source_path: Path, restored_path: Path) -> Path:
     return out_path
 
 
+def find_source_path_by_stem(folder: Path, stem: str) -> Path | None:
+    for source_path in choose_best_sources(folder):
+        if source_path.stem == stem:
+            return source_path
+    return None
+
+
+def related_compare_pair(path: Path) -> tuple[Path, Path] | None:
+    folder = path.parent
+    match = RESTORED_OUTPUT_RE.match(path.name)
+    if match:
+        source_path = find_source_path_by_stem(folder, match.group("stem"))
+        return (source_path, path) if source_path else None
+    if path.suffix.lower() in VALID_SOURCE_EXTENSIONS and not is_restored_output(path):
+        latest = latest_restore_output(folder, path.stem)
+        if latest:
+            return path, latest[1]
+    return None
+
+
+def rotate_image_file(path: Path, clockwise_degrees: int) -> Path | None:
+    require_pillow()
+    normalized = clockwise_degrees % 360
+    if normalized == 0:
+        return None
+    with Image.open(path) as image:
+        rotated = image.rotate(-normalized, expand=True)
+        rotated.save(path)
+    pair = related_compare_pair(path)
+    if pair:
+        return create_compare_image(pair[0], pair[1])
+    return None
+
+
 def image_to_png_bytes(path: Path) -> bytes:
     require_pillow()
     with Image.open(path) as image:
@@ -540,13 +575,13 @@ def run_gemini_restore(request: RestoreRequest, source_path: Path, output_path: 
     reference_path = validate_reference_image(request.reference_image)
     if reference_path:
         contents.append(
-            "REFERENCE SOURCE 1: Use only as guidance for identity reinforcement, hair, clothing, and color. Do not copy pose, framing, or extra bodies."
+            "REFERENCE SOURCE 1: Use this as a clearer same-person reference for facial identity, face detail, hair, clothing, and color guidance when needed, especially if the target photo is blurred or damaged. Do not copy pose, framing, or extra bodies."
         )
         contents.append(types.Part.from_bytes(data=image_to_png_bytes(Path(reference_path)), mime_type="image/png"))
     reference_path_2 = validate_reference_image(request.reference_image_2)
     if reference_path_2:
         contents.append(
-            "REFERENCE SOURCE 2: Secondary guidance only for facial identity, hair, clothing, and color. Never copy pose or framing from this image."
+            "REFERENCE SOURCE 2: Secondary same-person guidance for facial identity, face detail, hair, clothing, and color. Never copy pose or framing from this image."
         )
         contents.append(types.Part.from_bytes(data=image_to_png_bytes(Path(reference_path_2)), mime_type="image/png"))
 
@@ -706,6 +741,24 @@ def is_allowed_file_access(path: Path) -> bool:
     return any(root == path or root in path.parents for root in allowed_roots)
 
 
+def is_allowed_edit_path(path: Path) -> bool:
+    try:
+        path = path.resolve()
+    except FileNotFoundError:
+        return False
+    config = load_prompt_config()
+    selected_folder = str(config.get("selected_folder", "")).strip()
+    if not selected_folder:
+        return False
+    root = Path(selected_folder).expanduser().resolve()
+    if not (root == path.parent or root in path.parents):
+        return False
+    if not path.exists() or not path.is_file():
+        return False
+    suffix = path.suffix.lower()
+    return suffix in VALID_SOURCE_EXTENSIONS or suffix == ".png"
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "PhotoRestorer/0.1"
 
@@ -813,6 +866,25 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/process-stop":
                 payload = stop_auto_process()
                 self._send_json({"ok": True, **payload})
+                return
+            if parsed.path == "/api/rotate-save":
+                data = self._read_json_body()
+                path_text = str(data.get("path", "")).strip()
+                clockwise_degrees = int(data.get("clockwise_degrees", 0))
+                if not path_text:
+                    raise ValueError("Missing image path")
+                path = Path(path_text).expanduser()
+                if not is_allowed_edit_path(path):
+                    raise ValueError("That file cannot be modified")
+                compare_path = rotate_image_file(path, clockwise_degrees)
+                self._send_json(
+                    {
+                        "ok": True,
+                        "path": str(path.resolve()),
+                        "file_url": build_file_url(path.resolve()),
+                        "compare_url": build_file_url(compare_path) if compare_path else None,
+                    }
+                )
                 return
         except json.JSONDecodeError:
             self._send_json({"ok": False, "error": "Invalid JSON"}, code=400)
