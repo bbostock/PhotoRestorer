@@ -57,17 +57,19 @@ FORCED_PROMPT_PREFIX = """Task: Historical family photo restoration.
 This is a non-sexual, fully clothed historical family photograph. Innocent family photos of children are valid restoration input when treated as ordinary family portraits.
 
 Hard requirements:
+- The target photo is the only authority for scene layout. Keep the exact camera angle, crop, room or landscape layout, furniture, walls, windows, horizon, spacing between people, body placement, and overall composition from the target photo.
 - Preserve the exact facial identity, age cues, expression, and number of people from the target photo.
 - Preserve the exact pose, head direction, body position, hand placement, silhouette, framing, and camera viewpoint from the target photo.
 - Repair fading, scratches, tears, stains, discoloration, and age damage carefully while keeping the image natural and believable.
-- If the target photo is blurry or facial detail is weak, and a reference photo of the same people is provided, use that reference to recover facial identity and realistic face detail while still matching the target photo's pose, head direction, age, and expression.
+- If the target photo is blurry or facial detail is weak, and a reference photo of the same people is provided, use that reference only to recover facial identity and realistic face detail for the people already present in the target photo, while still matching the target photo's pose, head direction, age, expression, and exact positions in frame.
+- If the target photo is too ambiguous to recover a detail confidently, keep that detail restrained or slightly soft rather than changing the composition or inventing a new arrangement.
 - Treat this as restoration, not reimagining. Do not invent extra people, limbs, props, scenery, jewelry, or modern details.
-- If reference images are provided, use them only for identity reinforcement, hair, clothing, and color guidance. Never copy pose, framing, or extra bodies from references.
+- If reference images are provided, use them only for identity reinforcement, hair, clothing, and color guidance. Never copy pose, framing, camera distance, room layout, background, or extra bodies from references.
 """
 
 DEFAULT_USER_PROMPT = """Restore the target photograph carefully while preserving its original composition, facial identity, pose, and historical character.
 
-Repair fading, scratches, stains, tears, discoloration, blur, and age damage where possible. If a clearer reference photo of the same people is provided, use it to recover facial identity and face detail while keeping the target photo's pose and composition. Keep the result restrained, natural, and period-appropriate.
+Repair fading, scratches, stains, tears, discoloration, blur, and age damage where possible. If a clearer reference photo of the same people is provided, use it to recover facial identity and face detail only for the people already visible in the target photo. Do not change the target photo's layout, spacing, furniture, room, or camera framing. Keep the result restrained, natural, and period-appropriate.
 """
 
 
@@ -414,33 +416,42 @@ def flatten_for_preview(image: Image.Image, background: tuple[int, int, int] = (
     return Image.alpha_composite(base, rgba).convert("RGB")
 
 
+def load_oriented_image(path: Path) -> Image.Image:
+    require_pillow()
+    with Image.open(path) as image:
+        normalized = ImageOps.exif_transpose(image)
+        return normalized.copy()
+
+
 def normalize_to_source_frame(source_path: Path, restored_path: Path) -> None:
     require_pillow()
-    with Image.open(source_path) as source_img, Image.open(restored_path) as restored_img:
-        src_w, src_h = source_img.size
-        if src_w <= 0 or src_h <= 0:
-            return
-        target_size = (src_w, src_h)
-        fitted = ImageOps.fit(restored_img.convert("RGBA"), target_size, method=Image.Resampling.LANCZOS)
-        fitted.save(restored_path)
+    source_img = load_oriented_image(source_path)
+    restored_img = load_oriented_image(restored_path)
+    src_w, src_h = source_img.size
+    if src_w <= 0 or src_h <= 0:
+        return
+    target_size = (src_w, src_h)
+    fitted = ImageOps.fit(restored_img.convert("RGBA"), target_size, method=Image.Resampling.LANCZOS)
+    fitted.save(restored_path)
 
 
 def create_compare_image(source_path: Path, restored_path: Path) -> Path:
     require_pillow()
     out_path = compare_cache_path(source_path, restored_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with Image.open(source_path) as source_img, Image.open(restored_path) as restored_img:
-        left = flatten_for_preview(source_img)
-        right = flatten_for_preview(restored_img)
-        target_height = max(left.height, right.height)
-        if left.height != target_height:
-            left = left.resize((int(round(left.width * target_height / left.height)), target_height), Image.Resampling.LANCZOS)
-        if right.height != target_height:
-            right = right.resize((int(round(right.width * target_height / right.height)), target_height), Image.Resampling.LANCZOS)
-        compare = Image.new("RGB", (left.width + right.width, target_height), (235, 230, 223))
-        compare.paste(left, (0, 0))
-        compare.paste(right, (left.width, 0))
-        compare.save(out_path, format="JPEG", quality=92)
+    source_img = load_oriented_image(source_path)
+    restored_img = load_oriented_image(restored_path)
+    left = flatten_for_preview(source_img)
+    right = flatten_for_preview(restored_img)
+    target_height = max(left.height, right.height)
+    if left.height != target_height:
+        left = left.resize((int(round(left.width * target_height / left.height)), target_height), Image.Resampling.LANCZOS)
+    if right.height != target_height:
+        right = right.resize((int(round(right.width * target_height / right.height)), target_height), Image.Resampling.LANCZOS)
+    compare = Image.new("RGB", (left.width + right.width, target_height), (235, 230, 223))
+    compare.paste(left, (0, 0))
+    compare.paste(right, (left.width, 0))
+    compare.save(out_path, format="JPEG", quality=92)
     return out_path
 
 
@@ -469,9 +480,9 @@ def rotate_image_file(path: Path, clockwise_degrees: int) -> Path | None:
     normalized = clockwise_degrees % 360
     if normalized == 0:
         return None
-    with Image.open(path) as image:
-        rotated = image.rotate(-normalized, expand=True)
-        rotated.save(path)
+    image = load_oriented_image(path)
+    rotated = image.rotate(-normalized, expand=True)
+    rotated.save(path)
     pair = related_compare_pair(path)
     if pair:
         return create_compare_image(pair[0], pair[1])
@@ -480,11 +491,11 @@ def rotate_image_file(path: Path, clockwise_degrees: int) -> Path | None:
 
 def image_to_png_bytes(path: Path) -> bytes:
     require_pillow()
-    with Image.open(path) as image:
-        converted = image.convert("RGB")
-        buf = io.BytesIO()
-        converted.save(buf, format="PNG")
-        return buf.getvalue()
+    image = load_oriented_image(path)
+    converted = image.convert("RGB")
+    buf = io.BytesIO()
+    converted.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def get_client() -> genai.Client:
@@ -569,19 +580,19 @@ def run_gemini_restore(request: RestoreRequest, source_path: Path, output_path: 
     prompt = build_effective_prompt(request)
     contents: list[Any] = [
         prompt,
-        "TARGET SOURCE: Preserve the exact pose, head direction, facial identity, hand placement, framing, and number of people from this target photo.",
+        "TARGET SOURCE: This image defines the entire composition. Preserve the exact room or outdoor layout, furniture or building positions, number of people, person-to-person spacing, body placement, head direction, hand placement, framing, crop, and camera viewpoint from this target photo.",
         types.Part.from_bytes(data=image_to_png_bytes(source_path), mime_type="image/png"),
     ]
     reference_path = validate_reference_image(request.reference_image)
     if reference_path:
         contents.append(
-            "REFERENCE SOURCE 1: Use this as a clearer same-person reference for facial identity, face detail, hair, clothing, and color guidance when needed, especially if the target photo is blurred or damaged. Do not copy pose, framing, or extra bodies."
+            "REFERENCE SOURCE 1: Use this only as a same-person identity reference to recover face detail, hair, clothing, and color for the people already present in the target photo. Do not copy the scene, pose, framing, camera distance, background, or arrangement from this image."
         )
         contents.append(types.Part.from_bytes(data=image_to_png_bytes(Path(reference_path)), mime_type="image/png"))
     reference_path_2 = validate_reference_image(request.reference_image_2)
     if reference_path_2:
         contents.append(
-            "REFERENCE SOURCE 2: Secondary same-person guidance for facial identity, face detail, hair, clothing, and color. Never copy pose or framing from this image."
+            "REFERENCE SOURCE 2: Secondary same-person identity reference for face detail, hair, clothing, and color only. Never copy the scene, pose, framing, camera distance, or arrangement from this image."
         )
         contents.append(types.Part.from_bytes(data=image_to_png_bytes(Path(reference_path_2)), mime_type="image/png"))
 
@@ -589,9 +600,9 @@ def run_gemini_restore(request: RestoreRequest, source_path: Path, output_path: 
         model=DEFAULT_MODEL,
         contents=contents,
         config=types.GenerateContentConfig(
-            temperature=0.2,
+            temperature=0.1,
             top_p=0.9,
-            top_k=20,
+            top_k=10,
             max_output_tokens=2048,
             safety_settings=[
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
