@@ -26,7 +26,8 @@
 
     html, body {
       margin: 0;
-      height: 100%;
+      min-height: 100svh;
+      height: 100dvh;
       overflow: hidden;
       font-family: "Avenir Next", "Segoe UI", sans-serif;
       color: var(--text);
@@ -37,7 +38,8 @@
     }
 
     body {
-      min-height: 100vh;
+      min-height: 100svh;
+      height: 100dvh;
     }
 
     button,
@@ -68,8 +70,12 @@
       display: grid;
       grid-template-columns: 330px 1fr;
       gap: 16px;
-      padding: 16px;
-      height: 100vh;
+      padding: 12px;
+      padding-top: calc(12px + env(safe-area-inset-top));
+      padding-right: calc(12px + env(safe-area-inset-right));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      padding-left: calc(12px + env(safe-area-inset-left));
+      height: 100%;
       overflow: hidden;
     }
 
@@ -446,7 +452,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 300px;
+      min-height: clamp(180px, 26dvh, 300px);
     }
 
     .preview-frame img {
@@ -549,7 +555,7 @@
 
     .image-modal-panel {
       width: min(96vw, 1500px);
-      height: min(94vh, 1100px);
+      height: min(94dvh, 1100px);
       background: rgba(30, 21, 14, 0.97);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 24px;
@@ -617,13 +623,26 @@
       transition: transform 140ms ease;
     }
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1180px), (max-height: 920px) {
       .shell {
         grid-template-columns: 290px 1fr;
+        gap: 12px;
       }
 
       .grid-two {
         grid-template-columns: 1fr;
+      }
+
+      .preview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .preview-card.compare-card {
+        grid-column: 1 / -1;
+      }
+
+      .preview-frame {
+        min-height: clamp(160px, 22dvh, 240px);
       }
     }
 
@@ -642,6 +661,10 @@
 
       .preview-grid {
         grid-template-columns: 1fr;
+      }
+
+      .preview-card.compare-card {
+        grid-column: auto;
       }
 
       html, body {
@@ -805,7 +828,7 @@
             <div id="restored-placeholder" class="placeholder">Run a restore to preview the latest output.</div>
           </div>
         </article>
-        <article class="preview-card">
+        <article class="preview-card compare-card">
           <div class="preview-header">
             <h3>Compare</h3>
             <button id="compare-open-button" class="preview-open" type="button">Open</button>
@@ -932,6 +955,13 @@
     const imageModalRotateRightEl = document.getElementById("image-modal-rotate-right");
     const imageModalSaveEl = document.getElementById("image-modal-save");
     const CONTROL_BOX_STORAGE_KEY = "photoRestorer.controlBoxOpen";
+    const EDITABLE_FIELD_IDS = [
+      "prompt-text",
+      "reference-image",
+      "reference-image-2",
+      "extra-note",
+      "auto-pause-seconds",
+    ];
 
     function currentImage() {
       return state.images.find((item) => item.filename === state.selectedFilename) || null;
@@ -1048,10 +1078,10 @@
     function currentConfigBody() {
       return {
         selected_folder: state.config?.selected_folder || "",
-        prompt_text: document.getElementById("prompt-text").value.trim(),
-        reference_image: document.getElementById("reference-image").value.trim(),
-        reference_image_2: document.getElementById("reference-image-2").value.trim(),
-        extra_note: document.getElementById("extra-note").value.trim(),
+        prompt_text: document.getElementById("prompt-text").value,
+        reference_image: document.getElementById("reference-image").value,
+        reference_image_2: document.getElementById("reference-image-2").value,
+        extra_note: document.getElementById("extra-note").value,
         colorize: document.getElementById("colorize").checked,
         overwrite_existing: document.getElementById("overwrite-existing").checked,
         auto_pause_seconds: Number(document.getElementById("auto-pause-seconds").value || 0),
@@ -1059,16 +1089,28 @@
       };
     }
 
-    function applyConfig(config) {
+    function applyConfig(config, options = {}) {
+      const preserveEditing = Boolean(options.preserveEditing);
+      const activeId = document.activeElement && document.activeElement.id ? document.activeElement.id : "";
       state.config = config;
       selectedFolderEl.textContent = config.selected_folder || "No folder selected.";
-      document.getElementById("prompt-text").value = config.prompt_text || "";
-      document.getElementById("reference-image").value = config.reference_image || "";
-      document.getElementById("reference-image-2").value = config.reference_image_2 || "";
-      document.getElementById("extra-note").value = config.extra_note || "";
+      if (!(preserveEditing && activeId === "prompt-text")) {
+        document.getElementById("prompt-text").value = config.prompt_text || "";
+      }
+      if (!(preserveEditing && activeId === "reference-image")) {
+        document.getElementById("reference-image").value = config.reference_image || "";
+      }
+      if (!(preserveEditing && activeId === "reference-image-2")) {
+        document.getElementById("reference-image-2").value = config.reference_image_2 || "";
+      }
+      if (!(preserveEditing && activeId === "extra-note")) {
+        document.getElementById("extra-note").value = config.extra_note || "";
+      }
       document.getElementById("colorize").checked = Boolean(config.colorize);
       document.getElementById("overwrite-existing").checked = Boolean(config.overwrite_existing);
-      document.getElementById("auto-pause-seconds").value = Number(config.auto_pause_seconds || 0);
+      if (!(preserveEditing && activeId === "auto-pause-seconds")) {
+        document.getElementById("auto-pause-seconds").value = Number(config.auto_pause_seconds || 0);
+      }
       document.getElementById("auto-include-restored").checked = Boolean(config.auto_include_restored);
       setReferencePreview(config.reference_preview_url || "", referencePreviewImageEl);
       setReferencePreview(config.reference_preview_url_2 || "", referencePreviewImageEl2);
@@ -1102,7 +1144,7 @@
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to save settings");
       }
-      applyConfig(payload);
+      applyConfig(payload, { preserveEditing: !showMessage });
       if (showMessage) {
         statusLineEl.textContent = "Settings saved.";
       }
