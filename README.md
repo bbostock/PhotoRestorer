@@ -20,8 +20,12 @@ Local browser app for restoring historical family photos with Gemini image editi
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export GOOGLE_API_KEY="your_api_key_here"
 ```
+
+You can either:
+
+- set `GOOGLE_API_KEY` on the server, or
+- leave the server without a key and let each user enter their own Gemini API key in the app
 
 ## Run
 
@@ -54,3 +58,4 @@ Then open:
 - Runtime settings are stored in `family_restore_prompt_config.json`, which is intentionally git-ignored.
 - Token usage logs are written under `logs/`.
 - Temporary reference uploads and compare previews are stored in the system temp directory, not in this repo.
+- The Gemini API key field is stored only in each user's browser, not in the shared server config.

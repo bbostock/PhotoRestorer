@@ -722,6 +722,10 @@
             <article class="config-card">
               <div class="settings-grid">
                 <div class="field full">
+                  <label for="gemini-api-key">Gemini API key</label>
+                  <input id="gemini-api-key" type="password" placeholder="Stored only in this browser, not on the server" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="field full">
                   <label for="prompt-text">Prompt</label>
                   <textarea id="prompt-text" placeholder="Editable family-photo restoration guidance."></textarea>
                 </div>
@@ -955,13 +959,8 @@
     const imageModalRotateRightEl = document.getElementById("image-modal-rotate-right");
     const imageModalSaveEl = document.getElementById("image-modal-save");
     const CONTROL_BOX_STORAGE_KEY = "photoRestorer.controlBoxOpen";
-    const EDITABLE_FIELD_IDS = [
-      "prompt-text",
-      "reference-image",
-      "reference-image-2",
-      "extra-note",
-      "auto-pause-seconds",
-    ];
+    const API_KEY_STORAGE_KEY = "photoRestorer.geminiApiKey";
+    const apiKeyInputEl = document.getElementById("gemini-api-key");
 
     function currentImage() {
       return state.images.find((item) => item.filename === state.selectedFilename) || null;
@@ -1075,8 +1074,8 @@
       }
     }
 
-    function currentConfigBody() {
-      return {
+    function currentConfigBody(includeApiKey = false) {
+      const body = {
         selected_folder: state.config?.selected_folder || "",
         prompt_text: document.getElementById("prompt-text").value,
         reference_image: document.getElementById("reference-image").value,
@@ -1087,6 +1086,10 @@
         auto_pause_seconds: Number(document.getElementById("auto-pause-seconds").value || 0),
         auto_include_restored: document.getElementById("auto-include-restored").checked,
       };
+      if (includeApiKey) {
+        body.api_key = apiKeyInputEl.value;
+      }
+      return body;
     }
 
     function applyConfig(config, options = {}) {
@@ -1138,7 +1141,7 @@
       const response = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentConfigBody()),
+        body: JSON.stringify(currentConfigBody(false)),
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
@@ -1308,7 +1311,7 @@
         const response = await fetch("/api/restore", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...currentConfigBody(), filename: item.filename }),
+          body: JSON.stringify({ ...currentConfigBody(true), filename: item.filename }),
         });
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
@@ -1385,7 +1388,7 @@
       const response = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...currentConfigBody(), selected_folder: folderPath }),
+        body: JSON.stringify({ ...currentConfigBody(false), selected_folder: folderPath }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
@@ -1453,7 +1456,7 @@
       const response = await fetch("/api/process-folder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentConfigBody()),
+        body: JSON.stringify(currentConfigBody(true)),
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
@@ -1496,6 +1499,13 @@
     document.getElementById("extra-note").addEventListener("input", queueAutosave);
     document.getElementById("colorize").addEventListener("change", queueAutosave);
     document.getElementById("overwrite-existing").addEventListener("change", queueAutosave);
+    apiKeyInputEl.addEventListener("input", () => {
+      try {
+        window.localStorage.setItem(API_KEY_STORAGE_KEY, apiKeyInputEl.value);
+      } catch (error) {
+        // Ignore storage failures; the field should still work.
+      }
+    });
     document.getElementById("auto-pause-seconds").addEventListener("input", () => {
       updateModeSummary();
       queueAutosave();
@@ -1611,6 +1621,7 @@
           } else if (saved === "open") {
             controlBoxEl.open = true;
           }
+          apiKeyInputEl.value = window.localStorage.getItem(API_KEY_STORAGE_KEY) || "";
         } catch (error) {
           // Ignore storage failures; the default open state is acceptable.
         }

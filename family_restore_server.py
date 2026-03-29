@@ -10,11 +10,13 @@ import json
 import mimetypes
 import os
 import re
+import secrets
 import socket
 import tempfile
 import threading
 import time
 from dataclasses import dataclass
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -42,9 +44,11 @@ TOKEN_LOG_PATH = LOG_DIR / "token_usage.csv"
 CACHE_ROOT = Path(tempfile.gettempdir()) / "photo_restorer"
 REFERENCE_UPLOAD_DIR = CACHE_ROOT / "reference_uploads"
 PREVIEW_DIR = CACHE_ROOT / "compare_previews"
+SESSION_ROOT = CACHE_ROOT / "sessions"
 
 HOST = "0.0.0.0"
 PORT = 8765
+APP_MODE = os.environ.get("PHOTORESTORER_MODE", "hybrid").strip().lower()
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 VALID_SOURCE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 VALID_UPLOAD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -87,6 +91,7 @@ class RestoreRequest:
     extra_note: str
     colorize: bool
     overwrite_existing: bool
+    api_key: str
 
 
 class AutoProcessState:
@@ -170,6 +175,34 @@ def ensure_runtime_dirs() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     REFERENCE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    SESSION_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def normalized_app_mode() -> str:
+    return APP_MODE if APP_MODE in {"local", "hosted", "hybrid"} else "hybrid"
+
+
+def workflow_allowed(workflow: str) -> bool:
+    mode = normalized_app_mode()
+    if mode == "hybrid":
+        return workflow in {"local", "hosted"}
+    return workflow == mode
+
+
+def session_paths(session_id: str) -> dict[str, Path]:
+    base = SESSION_ROOT / session_id
+    return {
+        "base": base,
+        "targets": base / "targets",
+        "references": base / "references",
+    }
+
+
+def ensure_session_dirs(session_id: str) -> dict[str, Path]:
+    paths = session_paths(session_id)
+    for key in ("base", "targets", "references"):
+        paths[key].mkdir(parents=True, exist_ok=True)
+    return paths
 
 
 def require_pillow() -> None:
@@ -225,6 +258,7 @@ def load_prompt_config() -> dict[str, Any]:
     payload["auto_include_restored"] = bool(payload.get("auto_include_restored", False))
     payload["reference_preview_url"] = preview_url_for_file(payload["reference_image"])
     payload["reference_preview_url_2"] = preview_url_for_file(payload["reference_image_2"])
+    payload["app_mode"] = normalized_app_mode()
     return payload
 
 
@@ -291,6 +325,25 @@ def save_uploaded_reference(filename: str, data_url: str) -> dict[str, Any]:
     _, raw = parse_data_url(data_url)
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(filename).stem).strip("._") or "reference"
     out_path = REFERENCE_UPLOAD_DIR / f"{int(time.time() * 1000)}_{safe_stem}{ext}"
+    out_path.write_bytes(raw)
+    return {
+        "filename": out_path.name,
+        "path": str(out_path),
+        "url": build_file_url(out_path),
+    }
+
+
+def save_uploaded_image(filename: str, data_url: str, output_dir: Path) -> dict[str, Any]:
+    ext = Path(filename).suffix.lower()
+    if ext not in VALID_UPLOAD_EXTENSIONS:
+        raise ValueError("Unsupported image file type")
+    _, raw = parse_data_url(data_url)
+    safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(filename).stem).strip("._") or "image"
+    out_path = output_dir / f"{safe_stem}{ext}"
+    dedupe = 1
+    while out_path.exists():
+        out_path = output_dir / f"{safe_stem}_{dedupe:02d}{ext}"
+        dedupe += 1
     out_path.write_bytes(raw)
     return {
         "filename": out_path.name,
@@ -409,6 +462,10 @@ def scan_source_images(folder_text: str) -> list[dict[str, Any]]:
     return rows
 
 
+def hosted_source_folder_for_session(session_id: str) -> Path:
+    return ensure_session_dirs(session_id)["targets"]
+
+
 def flatten_for_preview(image: Image.Image, background: tuple[int, int, int] = (235, 230, 223)) -> Image.Image:
     require_pillow()
     rgba = image.convert("RGBA")
@@ -498,11 +555,11 @@ def image_to_png_bytes(path: Path) -> bytes:
     return buf.getvalue()
 
 
-def get_client() -> genai.Client:
+def get_client(api_key_override: str = "") -> genai.Client:
     require_genai()
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    api_key = api_key_override.strip() or os.environ.get("GOOGLE_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("GOOGLE_API_KEY is not set")
+        raise RuntimeError("No Gemini API key is available. Enter your own key in the app or set GOOGLE_API_KEY on the server.")
     return genai.Client(api_key=api_key)
 
 
@@ -576,7 +633,7 @@ def extract_image_from_response(response: Any, output_path: Path) -> str:
 
 
 def run_gemini_restore(request: RestoreRequest, source_path: Path, output_path: Path) -> dict[str, Any]:
-    client = get_client()
+    client = get_client(request.api_key)
     prompt = build_effective_prompt(request)
     contents: list[Any] = [
         prompt,
@@ -651,6 +708,7 @@ def build_restore_request(data: dict[str, Any]) -> RestoreRequest:
         extra_note=str(data.get("extra_note", "")).strip(),
         colorize=bool(data.get("colorize", False)),
         overwrite_existing=bool(data.get("overwrite_existing", False)),
+        api_key=str(data.get("api_key", "")).strip(),
     )
 
 
@@ -680,6 +738,7 @@ def auto_process_worker(config: dict[str, Any], filenames: list[str]) -> None:
         "extra_note": config["extra_note"],
         "colorize": config["colorize"],
         "overwrite_existing": config["overwrite_existing"],
+        "api_key": str(config.get("api_key", "")).strip(),
     }
     try:
         for filename in filenames:
@@ -773,26 +832,62 @@ def is_allowed_edit_path(path: Path) -> bool:
 class Handler(BaseHTTPRequestHandler):
     server_version = "PhotoRestorer/0.1"
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.session_id = ""
+        self._set_session_cookie = False
+        super().__init__(*args, **kwargs)
+
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
         return
 
+    def _ensure_session(self) -> None:
+        if self.session_id:
+            return
+        cookie = SimpleCookie(self.headers.get("Cookie"))
+        existing = cookie.get("photo_restorer_session")
+        if existing and existing.value:
+            self.session_id = existing.value
+        else:
+            self.session_id = secrets.token_urlsafe(18)
+            self._set_session_cookie = True
+        ensure_session_dirs(self.session_id)
+
+    def _workflow(self, query: dict[str, list[str]] | None = None) -> str:
+        workflow = ""
+        if query:
+            workflow = str(query.get("workflow", [""])[0]).strip().lower()
+        if not workflow:
+            workflow = normalized_app_mode() if normalized_app_mode() != "hybrid" else "local"
+        if workflow not in {"local", "hosted"} or not workflow_allowed(workflow):
+            raise ValueError(f"Workflow not allowed: {workflow}")
+        return workflow
+
     def _send_json(self, payload: dict[str, Any], code: int = 200) -> None:
+        self._ensure_session()
         body = json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if self._set_session_cookie:
+            self.send_header("Set-Cookie", f"photo_restorer_session={self.session_id}; Path=/; SameSite=Lax")
+            self._set_session_cookie = False
         self.end_headers()
         self.wfile.write(body)
 
     def _send_text_file(self, path: Path, content_type: str) -> None:
+        self._ensure_session()
         body = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        if self._set_session_cookie:
+            self.send_header("Set-Cookie", f"photo_restorer_session={self.session_id}; Path=/; SameSite=Lax")
+            self._set_session_cookie = False
         self.end_headers()
         self.wfile.write(body)
 
     def _send_file(self, path: Path) -> None:
+        self._ensure_session()
         if not path.exists() or not path.is_file():
             self._send_json({"ok": False, "error": "File not found"}, code=404)
             return
@@ -802,6 +897,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", mime_type or "application/octet-stream")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if self._set_session_cookie:
+            self.send_header("Set-Cookie", f"photo_restorer_session={self.session_id}; Path=/; SameSite=Lax")
+            self._set_session_cookie = False
         self.end_headers()
         self.wfile.write(body)
 
@@ -811,21 +909,45 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(raw.decode("utf-8"))
 
     def do_GET(self) -> None:
+        self._ensure_session()
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         if parsed.path in ("/", "/family_restore_gui.html"):
             self._send_text_file(ROOT / "family_restore_gui.html", "text/html; charset=utf-8")
             return
         if parsed.path == "/api/config":
-            self._send_json({"ok": True, **load_prompt_config()})
+            workflow = self._workflow(query)
+            if workflow == "hosted":
+                config = default_config()
+                config["app_mode"] = normalized_app_mode()
+                ref_dir = ensure_session_dirs(self.session_id)["references"]
+                refs = sorted([p for p in ref_dir.iterdir() if p.is_file()], key=lambda p: p.name.lower())
+                config["reference_image"] = str(refs[0]) if len(refs) > 0 else ""
+                config["reference_image_2"] = str(refs[1]) if len(refs) > 1 else ""
+                config["reference_preview_url"] = build_file_url(refs[0]) if len(refs) > 0 else None
+                config["reference_preview_url_2"] = build_file_url(refs[1]) if len(refs) > 1 else None
+                self._send_json({"ok": True, **config})
+            else:
+                self._send_json({"ok": True, **load_prompt_config()})
+            return
+        if parsed.path == "/api/app-info":
+            self._send_json({"ok": True, "app_mode": normalized_app_mode(), "session_id": self.session_id})
             return
         if parsed.path == "/api/folders":
+            workflow = self._workflow(query)
+            if workflow != "local":
+                self._send_json({"ok": False, "error": "Folder browsing is not available in hosted mode"}, code=403)
+                return
             path_text = query.get("path", [""])[0]
             self._send_json({"ok": True, **list_directories(path_text)})
             return
         if parsed.path == "/api/images":
-            config = load_prompt_config()
-            self._send_json({"ok": True, "images": scan_source_images(config["selected_folder"])})
+            workflow = self._workflow(query)
+            if workflow == "hosted":
+                self._send_json({"ok": True, "images": scan_source_images(str(hosted_source_folder_for_session(self.session_id)))})
+            else:
+                config = load_prompt_config()
+                self._send_json({"ok": True, "images": scan_source_images(config["selected_folder"])})
             return
         if parsed.path == "/api/process-status":
             self._send_json({"ok": True, **AUTO_STATE.snapshot()})
@@ -844,22 +966,60 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"ok": False, "error": "Unknown endpoint"}, code=404)
 
     def do_POST(self) -> None:
+        self._ensure_session()
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/api/config":
-                payload = save_prompt_config(self._read_json_body())
-                self._send_json({"ok": True, **payload})
+                body = self._read_json_body()
+                workflow = str(body.get("workflow", "")).strip().lower()
+                if not workflow:
+                    workflow = normalized_app_mode() if normalized_app_mode() != "hybrid" else "local"
+                if workflow == "hosted":
+                    config = default_config()
+                    config.update(
+                        {
+                            "prompt_text": str(body.get("prompt_text", config["prompt_text"])),
+                            "extra_note": str(body.get("extra_note", "")),
+                            "colorize": bool(body.get("colorize", False)),
+                            "overwrite_existing": bool(body.get("overwrite_existing", False)),
+                            "auto_pause_seconds": coerce_int(body.get("auto_pause_seconds"), config["auto_pause_seconds"], minimum=0, maximum=600),
+                            "auto_include_restored": bool(body.get("auto_include_restored", False)),
+                            "app_mode": normalized_app_mode(),
+                        }
+                    )
+                    self._send_json({"ok": True, **config})
+                else:
+                    payload = save_prompt_config(body)
+                    self._send_json({"ok": True, **payload})
                 return
             if parsed.path == "/api/reference-upload":
                 data = self._read_json_body()
-                payload = save_uploaded_reference(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip())
+                workflow = str(data.get("workflow", "")).strip().lower() or ("local" if normalized_app_mode() != "hosted" else "hosted")
+                if workflow == "hosted":
+                    ref_dir = ensure_session_dirs(self.session_id)["references"]
+                    payload = save_uploaded_image(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip(), ref_dir)
+                else:
+                    payload = save_uploaded_reference(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip())
+                self._send_json({"ok": True, **payload})
+                return
+            if parsed.path == "/api/target-upload":
+                data = self._read_json_body()
+                workflow = str(data.get("workflow", "")).strip().lower()
+                if workflow != "hosted":
+                    raise ValueError("Target upload is only available in hosted mode")
+                target_dir = ensure_session_dirs(self.session_id)["targets"]
+                payload = save_uploaded_image(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip(), target_dir)
                 self._send_json({"ok": True, **payload})
                 return
             if parsed.path == "/api/restore":
                 if AUTO_STATE.snapshot()["running"]:
                     self._send_json({"ok": False, "error": "Automatic processing is already running"}, code=409)
                     return
-                request = build_restore_request(self._read_json_body())
+                body = self._read_json_body()
+                workflow = str(body.get("workflow", "")).strip().lower() or ("local" if normalized_app_mode() != "hosted" else "hosted")
+                if workflow == "hosted":
+                    body["selected_folder"] = str(hosted_source_folder_for_session(self.session_id))
+                request = build_restore_request(body)
                 if not JOB_LOCK.acquire(blocking=False):
                     self._send_json({"ok": False, "error": "Another restore job is already running"}, code=409)
                     return
@@ -870,8 +1030,27 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, **payload})
                 return
             if parsed.path == "/api/process-folder":
-                config = save_prompt_config(self._read_json_body())
-                payload = start_auto_process(config)
+                body = self._read_json_body()
+                workflow = str(body.get("workflow", "")).strip().lower() or ("local" if normalized_app_mode() != "hosted" else "hosted")
+                if workflow == "hosted":
+                    config = default_config()
+                    config.update(
+                        {
+                            "selected_folder": str(hosted_source_folder_for_session(self.session_id)),
+                            "prompt_text": str(body.get("prompt_text", config["prompt_text"])),
+                            "reference_image": str(body.get("reference_image", "")),
+                            "reference_image_2": str(body.get("reference_image_2", "")),
+                            "extra_note": str(body.get("extra_note", "")),
+                            "colorize": bool(body.get("colorize", False)),
+                            "overwrite_existing": bool(body.get("overwrite_existing", False)),
+                            "auto_pause_seconds": coerce_int(body.get("auto_pause_seconds"), config["auto_pause_seconds"], minimum=0, maximum=600),
+                            "auto_include_restored": bool(body.get("auto_include_restored", False)),
+                        }
+                    )
+                else:
+                    config = save_prompt_config(body)
+                runtime_config = {**config, "api_key": str(body.get("api_key", "")).strip()}
+                payload = start_auto_process(runtime_config)
                 self._send_json({"ok": True, **payload})
                 return
             if parsed.path == "/api/process-stop":
