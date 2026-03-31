@@ -77,6 +77,10 @@ Example of the compare overlay view for checking the restored result against the
 
 ![PhotoRestorer compare overlay example](docs/examples/overlay-compare-example.png)
 
+Another compare overlay example showing a portrait-style historical restoration:
+
+![PhotoRestorer portrait compare overlay example](docs/examples/overlay-compare-portrait-example.png)
+
 ## Hosted cPanel app
 
 Use this when the app is hosted for other users. In this mode:
