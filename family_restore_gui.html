@@ -652,6 +652,16 @@
       color: var(--text);
     }
 
+    .browser-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .browser-input-row .browser-input {
+      flex: 1;
+    }
+
     .folder-browser-list {
       min-height: 0;
       overflow: auto;
@@ -1001,11 +1011,13 @@
       </div>
       <div class="field">
         <label for="browser-path-input">Paste server folder path</label>
-        <input id="browser-path-input" class="browser-input" type="text" placeholder="/path/to/folder">
+        <div class="browser-input-row">
+          <input id="browser-path-input" class="browser-input" type="text" placeholder="/path/to/folder">
+          <button id="browser-go-button" class="secondary" type="button">Go To Path</button>
+        </div>
       </div>
       <div id="browser-path" class="browser-path"></div>
       <div class="inline-actions">
-        <button id="browser-go-button" class="secondary" type="button">Go To Path</button>
         <button id="browser-up-button" class="secondary" type="button">Up</button>
         <button id="browser-select-button" class="primary" type="button">Use This Folder</button>
       </div>
@@ -1134,7 +1146,7 @@
     const CONTROL_BOX_STORAGE_KEY = "photoRestorer.controlBoxOpen";
     const API_KEY_STORAGE_KEY = "photoRestorer.geminiApiKey";
     const apiKeyInputEl = document.getElementById("gemini-api-key");
-    const APP_BASE_PATH = (() => {
+    const HOSTED_BASE_PATH = (() => {
       const path = window.location.pathname || "/";
       if (path === "/") return "";
       if (path.endsWith(".html")) {
@@ -1143,8 +1155,12 @@
       return path.replace(/\/$/, "");
     })();
 
+    function bootstrapApiUrl(path) {
+      return `${HOSTED_BASE_PATH}${path}`;
+    }
+
     function apiUrl(path) {
-      return `${APP_BASE_PATH}${path}`;
+      return isHostedMode() ? `${HOSTED_BASE_PATH}${path}` : path;
     }
 
     function isHostedMode() {
@@ -1262,12 +1278,12 @@
       imageModalTitleEl.textContent = `${title}: ${item.filename}`;
       clearImageModalCompareOverlay();
       if (compareOverlayMode) {
+        setCompareOverlaySplit(50);
         imageModalImgEl.removeAttribute("src");
         imageModalCompareBeforeEl.style.backgroundImage = cssBackgroundImage(`${item.source_url}${item.source_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
         imageModalCompareAfterEl.style.backgroundImage = cssBackgroundImage(`${item.latest_restore_url}${item.latest_restore_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
         imageModalCompareOverlayEl.classList.add("visible");
         imageModalCompareOverlayEl.setAttribute("aria-hidden", "false");
-        setCompareOverlaySplit(state.compareOverlay.split);
       } else {
         imageModalImgEl.src = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
       }
@@ -1393,7 +1409,7 @@
     }
 
     async function loadAppInfo() {
-      const response = await fetch(apiUrl("/api/app-info"));
+      const response = await fetch(bootstrapApiUrl("/api/app-info"));
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to load app info");

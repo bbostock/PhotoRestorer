@@ -50,6 +50,7 @@ HOST = "0.0.0.0"
 PORT = 8765
 APP_MODE = os.environ.get("PHOTORESTORER_MODE", "local").strip().lower()
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+DEFAULT_COLORIZE = True
 VALID_SOURCE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 VALID_UPLOAD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 RESTORED_OUTPUT_RE = re.compile(r"^(?P<stem>.+)_r(?P<index>\d{2})\.png$", re.IGNORECASE)
@@ -233,7 +234,7 @@ def default_config() -> dict[str, Any]:
         "reference_image": "",
         "reference_image_2": "",
         "extra_note": "",
-        "colorize": True,
+        "colorize": DEFAULT_COLORIZE,
         "overwrite_existing": False,
         "auto_pause_seconds": 5,
         "auto_include_restored": False,
@@ -252,7 +253,7 @@ def load_prompt_config() -> dict[str, Any]:
     payload["reference_image"] = str(payload.get("reference_image", "")).strip()
     payload["reference_image_2"] = str(payload.get("reference_image_2", "")).strip()
     payload["extra_note"] = str(payload.get("extra_note", "")).strip()
-    payload["colorize"] = bool(payload.get("colorize", True))
+    payload["colorize"] = bool(payload.get("colorize", DEFAULT_COLORIZE))
     payload["overwrite_existing"] = bool(payload.get("overwrite_existing", False))
     payload["auto_pause_seconds"] = coerce_int(payload.get("auto_pause_seconds"), 5, minimum=0, maximum=600)
     payload["auto_include_restored"] = bool(payload.get("auto_include_restored", False))
@@ -706,7 +707,7 @@ def build_restore_request(data: dict[str, Any]) -> RestoreRequest:
         reference_image=str(data.get("reference_image", "")).strip(),
         reference_image_2=str(data.get("reference_image_2", "")).strip(),
         extra_note=str(data.get("extra_note", "")).strip(),
-        colorize=bool(data.get("colorize", True)),
+        colorize=bool(data.get("colorize", DEFAULT_COLORIZE)),
         overwrite_existing=bool(data.get("overwrite_existing", False)),
         api_key=str(data.get("api_key", "")).strip(),
     )
@@ -908,14 +909,25 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length) if length > 0 else b"{}"
         return json.loads(raw.decode("utf-8"))
 
+    def _route_path(self, path: str) -> str:
+        if not path or path == "/":
+            return "/"
+        if path.endswith("/family_restore_gui.html"):
+            return "/family_restore_gui.html"
+        api_index = path.find("/api/")
+        if api_index >= 0:
+            return path[api_index:]
+        return path
+
     def do_GET(self) -> None:
         self._ensure_session()
         parsed = urlparse(self.path)
+        route_path = self._route_path(parsed.path)
         query = parse_qs(parsed.query)
-        if parsed.path in ("/", "/family_restore_gui.html"):
+        if route_path in ("/", "/family_restore_gui.html"):
             self._send_text_file(ROOT / "family_restore_gui.html", "text/html; charset=utf-8")
             return
-        if parsed.path == "/api/config":
+        if route_path == "/api/config":
             workflow = self._workflow(query)
             if workflow == "hosted":
                 config = default_config()
@@ -930,10 +942,10 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"ok": True, **load_prompt_config()})
             return
-        if parsed.path == "/api/app-info":
+        if route_path == "/api/app-info":
             self._send_json({"ok": True, "app_mode": normalized_app_mode(), "session_id": self.session_id})
             return
-        if parsed.path == "/api/folders":
+        if route_path == "/api/folders":
             workflow = self._workflow(query)
             if workflow != "local":
                 self._send_json({"ok": False, "error": "Folder browsing is not available in hosted mode"}, code=403)
@@ -941,7 +953,7 @@ class Handler(BaseHTTPRequestHandler):
             path_text = query.get("path", [""])[0]
             self._send_json({"ok": True, **list_directories(path_text)})
             return
-        if parsed.path == "/api/images":
+        if route_path == "/api/images":
             workflow = self._workflow(query)
             if workflow == "hosted":
                 self._send_json({"ok": True, "images": scan_source_images(str(hosted_source_folder_for_session(self.session_id)))})
@@ -949,10 +961,10 @@ class Handler(BaseHTTPRequestHandler):
                 config = load_prompt_config()
                 self._send_json({"ok": True, "images": scan_source_images(config["selected_folder"])})
             return
-        if parsed.path == "/api/process-status":
+        if route_path == "/api/process-status":
             self._send_json({"ok": True, **AUTO_STATE.snapshot()})
             return
-        if parsed.path == "/api/file":
+        if route_path == "/api/file":
             path_text = query.get("path", [""])[0]
             if not path_text:
                 self._send_json({"ok": False, "error": "Missing file path"}, code=400)
@@ -968,8 +980,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         self._ensure_session()
         parsed = urlparse(self.path)
+        route_path = self._route_path(parsed.path)
         try:
-            if parsed.path == "/api/config":
+            if route_path == "/api/config":
                 body = self._read_json_body()
                 workflow = str(body.get("workflow", "")).strip().lower()
                 if not workflow:
@@ -992,7 +1005,7 @@ class Handler(BaseHTTPRequestHandler):
                     payload = save_prompt_config(body)
                     self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/reference-upload":
+            if route_path == "/api/reference-upload":
                 data = self._read_json_body()
                 workflow = str(data.get("workflow", "")).strip().lower() or ("local" if normalized_app_mode() != "hosted" else "hosted")
                 if workflow == "hosted":
@@ -1002,7 +1015,7 @@ class Handler(BaseHTTPRequestHandler):
                     payload = save_uploaded_reference(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip())
                 self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/target-upload":
+            if route_path == "/api/target-upload":
                 data = self._read_json_body()
                 workflow = str(data.get("workflow", "")).strip().lower()
                 if workflow != "hosted":
@@ -1011,7 +1024,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload = save_uploaded_image(str(data.get("filename", "")).strip(), str(data.get("data_url", "")).strip(), target_dir)
                 self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/restore":
+            if route_path == "/api/restore":
                 if AUTO_STATE.snapshot()["running"]:
                     self._send_json({"ok": False, "error": "Automatic processing is already running"}, code=409)
                     return
@@ -1029,7 +1042,7 @@ class Handler(BaseHTTPRequestHandler):
                     JOB_LOCK.release()
                 self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/process-folder":
+            if route_path == "/api/process-folder":
                 body = self._read_json_body()
                 workflow = str(body.get("workflow", "")).strip().lower() or ("local" if normalized_app_mode() != "hosted" else "hosted")
                 if workflow == "hosted":
@@ -1053,11 +1066,11 @@ class Handler(BaseHTTPRequestHandler):
                 payload = start_auto_process(runtime_config)
                 self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/process-stop":
+            if route_path == "/api/process-stop":
                 payload = stop_auto_process()
                 self._send_json({"ok": True, **payload})
                 return
-            if parsed.path == "/api/rotate-save":
+            if route_path == "/api/rotate-save":
                 data = self._read_json_body()
                 path_text = str(data.get("path", "")).strip()
                 clockwise_degrees = int(data.get("clockwise_degrees", 0))
