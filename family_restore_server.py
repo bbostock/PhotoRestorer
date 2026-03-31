@@ -77,7 +77,6 @@ DEFAULT_USER_PROMPT = """Restore the target photograph carefully while preservin
 Repair fading, scratches, stains, tears, discoloration, blur, and age damage where possible. If a clearer reference photo of the same people is provided, use it to recover facial identity and face detail only for the people already visible in the target photo. Do not change the target photo's layout, spacing, furniture, room, or camera framing. Keep the result restrained, natural, and period-appropriate.
 """
 
-
 class RefusalError(RuntimeError):
     """Raised when Gemini refuses to return an image."""
 
@@ -629,7 +628,12 @@ def extract_image_from_response(response: Any, output_path: Path) -> str:
     finish_reason = None
     if getattr(response, "candidates", None):
         finish_reason = getattr(response.candidates[0], "finish_reason", None)
-    reason = block_reason or finish_reason or "model refusal"
+    reason = str(block_reason or finish_reason or "model refusal")
+    if "PROHIBITED_CONTENT" in reason:
+        raise RefusalError(
+            "Gemini blocked this image under its content policy. Prompt changes may not help; "
+            "you may need a different restoration workflow for this photo."
+        )
     raise RefusalError(f"Gemini refused the historical family photo request: {reason}")
 
 

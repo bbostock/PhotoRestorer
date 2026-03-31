@@ -46,6 +46,17 @@ def build_file_url(script_name: str, path: Path) -> str:
     return f"{app_path(script_name, '/api/file')}?path={quote(str(path))}"
 
 
+def route_path(path: str) -> str:
+    if not path or path == "/":
+        return "/"
+    if path.endswith("/family_restore_gui.html"):
+        return "/family_restore_gui.html"
+    api_index = path.find("/api/")
+    if api_index >= 0:
+        return path[api_index:]
+    return path
+
+
 def get_or_create_session(environ: dict[str, Any]) -> tuple[str, list[tuple[str, str]]]:
     script_name = environ.get("SCRIPT_NAME", "")
     cookie = SimpleCookie(environ.get("HTTP_COOKIE", ""))
@@ -246,27 +257,28 @@ def application(environ: dict[str, Any], start_response: Any) -> list[bytes]:
     ensure_runtime_dirs()
     script_name = environ.get("SCRIPT_NAME", "")
     path_info = environ.get("PATH_INFO", "") or "/"
+    routed_path = route_path(path_info)
     session_id, session_headers = get_or_create_session(environ)
     query = parse_qs(environ.get("QUERY_STRING", ""))
 
     try:
         if environ["REQUEST_METHOD"] == "GET":
-            if path_info in {"", "/", "/family_restore_gui.html"}:
+            if routed_path in {"", "/", "/family_restore_gui.html"}:
                 return bytes_response(
                     start_response,
                     (ROOT / "family_restore_gui.html").read_bytes(),
                     "text/html; charset=utf-8",
                     extra_headers=session_headers,
                 )
-            if path_info == "/api/app-info":
+            if routed_path == "/api/app-info":
                 return json_response(start_response, {"ok": True, "app_mode": "hosted", "session_id": session_id}, extra_headers=session_headers)
-            if path_info == "/api/config":
+            if routed_path == "/api/config":
                 return json_response(start_response, {"ok": True, **hosted_config(session_id, script_name)}, extra_headers=session_headers)
-            if path_info == "/api/images":
+            if routed_path == "/api/images":
                 return json_response(start_response, {"ok": True, "images": hosted_images(session_id, script_name)}, extra_headers=session_headers)
-            if path_info == "/api/process-status":
+            if routed_path == "/api/process-status":
                 return json_response(start_response, {"ok": True, **get_session_auto_state(session_id).snapshot()}, extra_headers=session_headers)
-            if path_info == "/api/file":
+            if routed_path == "/api/file":
                 path_text = query.get("path", [""])[0]
                 if not path_text:
                     return json_response(start_response, {"ok": False, "error": "Missing file path"}, "400 Bad Request", session_headers)
@@ -286,19 +298,19 @@ def application(environ: dict[str, Any], start_response: Any) -> list[bytes]:
 
         if environ["REQUEST_METHOD"] == "POST":
             body = read_json_body(environ)
-            if path_info == "/api/config":
+            if routed_path == "/api/config":
                 return json_response(start_response, {"ok": True, **hosted_config(session_id, script_name, body)}, extra_headers=session_headers)
-            if path_info == "/api/reference-upload":
+            if routed_path == "/api/reference-upload":
                 ref_dir = ensure_session_dirs(session_id)["references"]
                 payload = save_uploaded_image(str(body.get("filename", "")).strip(), str(body.get("data_url", "")).strip(), ref_dir)
                 payload["url"] = build_file_url(script_name, Path(payload["path"]))
                 return json_response(start_response, {"ok": True, **payload}, extra_headers=session_headers)
-            if path_info == "/api/target-upload":
+            if routed_path == "/api/target-upload":
                 target_dir = ensure_session_dirs(session_id)["targets"]
                 payload = save_uploaded_image(str(body.get("filename", "")).strip(), str(body.get("data_url", "")).strip(), target_dir)
                 payload["url"] = build_file_url(script_name, Path(payload["path"]))
                 return json_response(start_response, {"ok": True, **payload}, extra_headers=session_headers)
-            if path_info == "/api/restore":
+            if routed_path == "/api/restore":
                 if get_session_auto_state(session_id).snapshot()["running"]:
                     return json_response(start_response, {"ok": False, "error": "Automatic processing is already running for this session"}, "409 Conflict", session_headers)
                 body["selected_folder"] = str(ensure_session_dirs(session_id)["targets"])
@@ -311,14 +323,14 @@ def application(environ: dict[str, Any], start_response: Any) -> list[bytes]:
                 finally:
                     JOB_LOCK.release()
                 return json_response(start_response, {"ok": True, **payload}, extra_headers=session_headers)
-            if path_info == "/api/process-folder":
+            if routed_path == "/api/process-folder":
                 payload = start_hosted_auto_process(session_id, script_name, body)
                 return json_response(start_response, {"ok": True, **payload}, extra_headers=session_headers)
-            if path_info == "/api/process-stop":
+            if routed_path == "/api/process-stop":
                 state = get_session_auto_state(session_id)
                 state.request_stop()
                 return json_response(start_response, {"ok": True, **state.snapshot()}, extra_headers=session_headers)
-            if path_info == "/api/rotate-save":
+            if routed_path == "/api/rotate-save":
                 path_text = str(body.get("path", "")).strip()
                 clockwise_degrees = int(body.get("clockwise_degrees", 0))
                 if not path_text:
