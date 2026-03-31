@@ -48,7 +48,7 @@ SESSION_ROOT = CACHE_ROOT / "sessions"
 
 HOST = "0.0.0.0"
 PORT = 8765
-APP_MODE = os.environ.get("PHOTORESTORER_MODE", "hybrid").strip().lower()
+APP_MODE = os.environ.get("PHOTORESTORER_MODE", "local").strip().lower()
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 VALID_SOURCE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 VALID_UPLOAD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -233,7 +233,7 @@ def default_config() -> dict[str, Any]:
         "reference_image": "",
         "reference_image_2": "",
         "extra_note": "",
-        "colorize": False,
+        "colorize": True,
         "overwrite_existing": False,
         "auto_pause_seconds": 5,
         "auto_include_restored": False,
@@ -252,7 +252,7 @@ def load_prompt_config() -> dict[str, Any]:
     payload["reference_image"] = str(payload.get("reference_image", "")).strip()
     payload["reference_image_2"] = str(payload.get("reference_image_2", "")).strip()
     payload["extra_note"] = str(payload.get("extra_note", "")).strip()
-    payload["colorize"] = bool(payload.get("colorize", False))
+    payload["colorize"] = bool(payload.get("colorize", True))
     payload["overwrite_existing"] = bool(payload.get("overwrite_existing", False))
     payload["auto_pause_seconds"] = coerce_int(payload.get("auto_pause_seconds"), 5, minimum=0, maximum=600)
     payload["auto_include_restored"] = bool(payload.get("auto_include_restored", False))
@@ -706,7 +706,7 @@ def build_restore_request(data: dict[str, Any]) -> RestoreRequest:
         reference_image=str(data.get("reference_image", "")).strip(),
         reference_image_2=str(data.get("reference_image_2", "")).strip(),
         extra_note=str(data.get("extra_note", "")).strip(),
-        colorize=bool(data.get("colorize", False)),
+        colorize=bool(data.get("colorize", True)),
         overwrite_existing=bool(data.get("overwrite_existing", False)),
         api_key=str(data.get("api_key", "")).strip(),
     )
@@ -980,7 +980,7 @@ class Handler(BaseHTTPRequestHandler):
                         {
                             "prompt_text": str(body.get("prompt_text", config["prompt_text"])),
                             "extra_note": str(body.get("extra_note", "")),
-                            "colorize": bool(body.get("colorize", False)),
+                            "colorize": bool(body.get("colorize", config["colorize"])),
                             "overwrite_existing": bool(body.get("overwrite_existing", False)),
                             "auto_pause_seconds": coerce_int(body.get("auto_pause_seconds"), config["auto_pause_seconds"], minimum=0, maximum=600),
                             "auto_include_restored": bool(body.get("auto_include_restored", False)),
@@ -1041,7 +1041,7 @@ class Handler(BaseHTTPRequestHandler):
                             "reference_image": str(body.get("reference_image", "")),
                             "reference_image_2": str(body.get("reference_image_2", "")),
                             "extra_note": str(body.get("extra_note", "")),
-                            "colorize": bool(body.get("colorize", False)),
+                            "colorize": bool(body.get("colorize", config["colorize"])),
                             "overwrite_existing": bool(body.get("overwrite_existing", False)),
                             "auto_pause_seconds": coerce_int(body.get("auto_pause_seconds"), config["auto_pause_seconds"], minimum=0, maximum=600),
                             "auto_include_restored": bool(body.get("auto_include_restored", False)),

@@ -440,6 +440,25 @@
       background: rgba(115, 89, 58, 0.12);
       color: var(--text);
       font-size: 0.78rem;
+      text-decoration: none;
+    }
+
+    .compare-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .compare-toggle {
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     .preview-frame {
@@ -464,6 +483,102 @@
 
     .preview-frame img.visible {
       display: block;
+    }
+
+    .compare-overlay {
+      --compare-split: 50%;
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 1;
+      user-select: none;
+      touch-action: none;
+      cursor: ew-resize;
+      background: rgba(235, 230, 223, 0.82);
+    }
+
+    .compare-overlay.visible {
+      display: block;
+    }
+
+    .compare-overlay-layer,
+    .compare-overlay-after {
+      position: absolute;
+      inset: 0;
+      display: block;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: contain;
+      pointer-events: none;
+    }
+
+    .compare-overlay-after {
+      clip-path: inset(0 calc(100% - var(--compare-split)) 0 0);
+    }
+
+    .compare-overlay-badge {
+      position: absolute;
+      top: 10px;
+      z-index: 2;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(49, 36, 24, 0.72);
+      color: #fffaf2;
+      font-size: 0.72rem;
+      letter-spacing: 0.01em;
+      pointer-events: none;
+    }
+
+    .compare-overlay-badge.before {
+      left: 10px;
+    }
+
+    .compare-overlay-badge.after {
+      right: 10px;
+    }
+
+    .compare-overlay-divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--compare-split);
+      width: 2px;
+      background: rgba(255, 250, 242, 0.96);
+      transform: translateX(-50%);
+      box-shadow: 0 0 0 1px rgba(49, 36, 24, 0.22);
+      pointer-events: none;
+    }
+
+    .compare-overlay-divider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 250, 242, 0.96);
+      background:
+        linear-gradient(90deg, transparent 42%, rgba(255, 250, 242, 0.96) 42%, rgba(255, 250, 242, 0.96) 58%, transparent 58%),
+        rgba(49, 36, 24, 0.5);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 8px 18px rgba(49, 36, 24, 0.2);
+    }
+
+    .compare-overlay-controls {
+      display: grid;
+      gap: 6px;
+    }
+
+    .compare-overlay-controls label {
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    .compare-overlay-controls input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      margin: 0;
     }
 
     .placeholder {
@@ -561,7 +676,7 @@
       border-radius: 24px;
       box-shadow: var(--shadow);
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto 1fr auto;
       gap: 10px;
       padding: 16px;
     }
@@ -615,12 +730,29 @@
       padding: 12px;
     }
 
+    .image-modal-frame.compare-mode {
+      position: relative;
+      overflow: hidden;
+      align-items: stretch;
+      justify-content: stretch;
+      padding: 0;
+      background: rgba(235, 230, 223, 0.92);
+    }
+
     .image-modal-frame img {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
       transform-origin: center center;
       transition: transform 140ms ease;
+    }
+
+    .image-modal-compare-controls {
+      padding: 0 4px 2px;
+    }
+
+    .image-modal-compare-controls label {
+      color: rgba(247, 239, 227, 0.82);
     }
 
     @media (max-width: 1180px), (max-height: 920px) {
@@ -682,13 +814,19 @@
       </div>
 
       <section class="folder-card">
+        <div id="app-mode-copy" class="subtle">Local server-folder workflow.</div>
         <div class="field">
-          <label>Selected server folder</label>
+          <label id="source-section-label">Selected server folder</label>
           <div id="selected-folder" class="folder-path">No folder selected.</div>
         </div>
-        <div class="inline-actions">
+        <div id="folder-actions" class="inline-actions">
           <button id="browse-folder-button" class="secondary" type="button">Browse Server Folders</button>
           <button id="refresh-button" class="secondary" type="button">Refresh List</button>
+        </div>
+        <div id="upload-actions" class="inline-actions hidden">
+          <button id="choose-targets-button" class="secondary" type="button">Upload Target Photos</button>
+          <button id="refresh-upload-button" class="secondary" type="button">Refresh List</button>
+          <input id="target-file-input" type="file" accept=".png,.jpg,.jpeg,.webp" multiple hidden>
         </div>
       </section>
 
@@ -746,16 +884,16 @@
 
               <div class="settings-grid">
                 <div class="field full">
-                  <label for="reference-image">Primary face reference</label>
+                  <label for="reference-image">Primary same-person reference</label>
                   <input id="reference-image" type="text" placeholder="Uploaded clearer photo of the same people">
                 </div>
                 <div class="field full">
-                  <label for="reference-image-2">Secondary face reference</label>
+                  <label for="reference-image-2">Secondary same-person reference</label>
                   <input id="reference-image-2" type="text" placeholder="Optional second clearer photo of the same people">
                 </div>
                 <div class="field full">
                   <label>Reference use</label>
-                  <div class="folder-path">Use a clearer photo of the same people when the target is blurry. The app will use the reference for face detail and identity, while keeping the target photo’s pose and composition.</div>
+                  <div class="folder-path">Use a clearer photo of the same people when the target is blurry. The app will use references for identity, hair, clothing, and natural person detail while keeping the target photo’s pose, placement, and composition.</div>
                 </div>
               </div>
 
@@ -825,7 +963,10 @@
         <article class="preview-card">
           <div class="preview-header">
             <h3>Latest Restored</h3>
-            <button id="restored-open-button" class="preview-open" type="button">Open</button>
+            <div class="inline-actions">
+              <a id="restored-download-button" class="preview-open hidden" href="#" download>Download</a>
+              <button id="restored-open-button" class="preview-open" type="button">Open</button>
+            </div>
           </div>
           <div class="preview-frame">
             <img id="restored-image" alt="Restored image preview">
@@ -835,7 +976,7 @@
         <article class="preview-card compare-card">
           <div class="preview-header">
             <h3>Compare</h3>
-            <button id="compare-open-button" class="preview-open" type="button">Open</button>
+            <button id="compare-open-button" class="preview-open" type="button">Overlay Compare</button>
           </div>
           <div class="preview-frame">
             <img id="compare-image" alt="Comparison preview">
@@ -890,12 +1031,24 @@
       </div>
       <div class="image-modal-frame">
         <img id="image-modal-img" alt="Expanded preview">
+        <div id="image-modal-compare-overlay" class="compare-overlay" aria-hidden="true">
+          <div id="image-modal-compare-before" class="compare-overlay-layer" aria-hidden="true"></div>
+          <div id="image-modal-compare-after" class="compare-overlay-after" aria-hidden="true"></div>
+          <div class="compare-overlay-badge before">Before</div>
+          <div class="compare-overlay-badge after">After</div>
+          <div class="compare-overlay-divider" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div id="image-modal-compare-controls" class="compare-overlay-controls image-modal-compare-controls hidden">
+        <label for="image-modal-compare-range">Overlay slider</label>
+        <input id="image-modal-compare-range" type="range" min="0" max="100" value="50" step="1">
       </div>
     </div>
   </div>
 
   <script>
     const state = {
+      appMode: "local",
       config: null,
       images: [],
       search: "",
@@ -915,11 +1068,20 @@
         dirty: false,
         url: "",
         path: "",
+        compareOverlay: false,
+      },
+      compareOverlay: {
+        split: 50,
+        modalPointerId: null,
       },
     };
 
     const imageListEl = document.getElementById("image-list");
     const selectedFolderEl = document.getElementById("selected-folder");
+    const appModeCopyEl = document.getElementById("app-mode-copy");
+    const sourceSectionLabelEl = document.getElementById("source-section-label");
+    const folderActionsEl = document.getElementById("folder-actions");
+    const uploadActionsEl = document.getElementById("upload-actions");
     const searchEl = document.getElementById("search");
     const selectedNameEl = document.getElementById("selected-name");
     const selectedMetaEl = document.getElementById("selected-meta");
@@ -943,6 +1105,7 @@
     const referencePreviewImageEl = document.getElementById("reference-preview-image");
     const referencePreviewImageEl2 = document.getElementById("reference-preview-image-2");
     const controlBoxEl = document.getElementById("control-box");
+    const restoredDownloadButtonEl = document.getElementById("restored-download-button");
 
     const folderModalEl = document.getElementById("folder-modal");
     const browserPathEl = document.getElementById("browser-path");
@@ -952,8 +1115,18 @@
     const browserUpButtonEl = document.getElementById("browser-up-button");
     const browserSelectButtonEl = document.getElementById("browser-select-button");
     const imageModalEl = document.getElementById("image-modal");
+    const imageModalFrameEl = imageModalEl.querySelector(".image-modal-frame");
     const imageModalImgEl = document.getElementById("image-modal-img");
+    const imageModalCompareOverlayEl = document.getElementById("image-modal-compare-overlay");
+    const imageModalCompareBeforeEl = document.getElementById("image-modal-compare-before");
+    const imageModalCompareAfterEl = document.getElementById("image-modal-compare-after");
+    const imageModalCompareControlsEl = document.getElementById("image-modal-compare-controls");
+    const imageModalCompareRangeEl = document.getElementById("image-modal-compare-range");
     const imageModalTitleEl = document.getElementById("image-modal-title");
+    const imageModalFitEl = document.getElementById("image-modal-fit");
+    const imageModalZoomOutEl = document.getElementById("image-modal-zoom-out");
+    const imageModalZoomResetEl = document.getElementById("image-modal-zoom-reset");
+    const imageModalZoomInEl = document.getElementById("image-modal-zoom-in");
     const imageModalZoomLabelEl = document.getElementById("image-modal-zoom-label");
     const imageModalRotateLeftEl = document.getElementById("image-modal-rotate-left");
     const imageModalRotateRightEl = document.getElementById("image-modal-rotate-right");
@@ -961,6 +1134,35 @@
     const CONTROL_BOX_STORAGE_KEY = "photoRestorer.controlBoxOpen";
     const API_KEY_STORAGE_KEY = "photoRestorer.geminiApiKey";
     const apiKeyInputEl = document.getElementById("gemini-api-key");
+    const APP_BASE_PATH = (() => {
+      const path = window.location.pathname || "/";
+      if (path === "/") return "";
+      if (path.endsWith(".html")) {
+        return path.replace(/\/[^/]+$/, "");
+      }
+      return path.replace(/\/$/, "");
+    })();
+
+    function apiUrl(path) {
+      return `${APP_BASE_PATH}${path}`;
+    }
+
+    function isHostedMode() {
+      return state.appMode === "hosted";
+    }
+
+    function updateAppModeUi() {
+      const hosted = isHostedMode();
+      appModeCopyEl.textContent = hosted
+        ? "Hosted upload workflow. Users upload target and reference photos into a temporary browser session."
+        : "Local server-folder workflow.";
+      sourceSectionLabelEl.textContent = hosted ? "Session upload workspace" : "Selected server folder";
+      folderActionsEl.classList.toggle("hidden", hosted);
+      uploadActionsEl.classList.toggle("hidden", !hosted);
+      if (hosted) {
+        selectedFolderEl.textContent = "Current browser session uploads";
+      }
+    }
 
     function currentImage() {
       return state.images.find((item) => item.filename === state.selectedFilename) || null;
@@ -978,24 +1180,64 @@
       }
     }
 
+    function cssBackgroundImage(url) {
+      const escaped = String(url || "").replace(/["\\]/g, "\\$&");
+      return escaped ? `url("${escaped}")` : "";
+    }
+
+    function setCompareOverlaySplit(value) {
+      const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+      state.compareOverlay.split = clamped;
+      imageModalCompareOverlayEl.style.setProperty("--compare-split", `${clamped}%`);
+      imageModalCompareRangeEl.value = String(clamped);
+    }
+
+    function updateModalCompareFromPointer(event) {
+      const rect = imageModalCompareOverlayEl.getBoundingClientRect();
+      if (!rect.width) return;
+      const split = ((event.clientX - rect.left) / rect.width) * 100;
+      setCompareOverlaySplit(split);
+    }
+
+    function clearImageModalCompareOverlay() {
+      state.compareOverlay.modalPointerId = null;
+      imageModalCompareOverlayEl.classList.remove("visible");
+      imageModalCompareOverlayEl.setAttribute("aria-hidden", "true");
+      imageModalCompareBeforeEl.style.backgroundImage = "";
+      imageModalCompareAfterEl.style.backgroundImage = "";
+      imageModalCompareControlsEl.classList.add("hidden");
+    }
+
     function imageModalIsEditable() {
       return state.imageModal.kind === "original" || state.imageModal.kind === "restored";
     }
 
     function updateImageModalControls() {
       const editable = imageModalIsEditable();
-      imageModalRotateLeftEl.classList.toggle("hidden", !editable);
-      imageModalRotateRightEl.classList.toggle("hidden", !editable);
-      imageModalSaveEl.classList.toggle("hidden", !(editable && state.imageModal.dirty));
+      const compareOverlayMode = Boolean(state.imageModal.compareOverlay);
+      imageModalFrameEl.classList.toggle("compare-mode", compareOverlayMode);
+      imageModalImgEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalFitEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalZoomOutEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalZoomResetEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalZoomInEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalZoomLabelEl.classList.toggle("hidden", compareOverlayMode);
+      imageModalRotateLeftEl.classList.toggle("hidden", !editable || compareOverlayMode);
+      imageModalRotateRightEl.classList.toggle("hidden", !editable || compareOverlayMode);
+      imageModalSaveEl.classList.toggle("hidden", !(editable && state.imageModal.dirty && !compareOverlayMode));
+      imageModalCompareControlsEl.classList.toggle("hidden", !compareOverlayMode);
     }
 
     function updateImageModalZoom() {
-      imageModalImgEl.style.transform = `rotate(${state.imageModal.rotation}deg) scale(${state.imageModal.scale})`;
+      if (!state.imageModal.compareOverlay) {
+        imageModalImgEl.style.transform = `rotate(${state.imageModal.rotation}deg) scale(${state.imageModal.scale})`;
+      }
       imageModalZoomLabelEl.textContent = `${Math.round(state.imageModal.scale * 100)}%`;
       updateImageModalControls();
     }
 
     function setImageModalZoom(scale) {
+      if (state.imageModal.compareOverlay) return;
       state.imageModal.scale = Math.max(0.5, Math.min(4, Number(scale.toFixed(2))));
       updateImageModalZoom();
     }
@@ -1003,18 +1245,32 @@
     function openImageModal(kind) {
       const item = currentImage();
       if (!item) return;
+      const compareOverlayMode = kind === "compare" && item.source_url && item.latest_restore_url;
       const title = kind === "original" ? "Original" : kind === "restored" ? "Latest Restored" : "Compare";
-      const url = kind === "original" ? item.source_url : kind === "restored" ? item.latest_restore_url : item.compare_url;
+      const url = compareOverlayMode
+        ? ""
+        : (kind === "original" ? item.source_url : kind === "restored" ? item.latest_restore_url : item.compare_url);
       const path = kind === "original" ? item.source_path : kind === "restored" ? item.latest_restore_path : "";
-      if (!url) return;
+      if (!url && !compareOverlayMode) return;
       state.imageModal.kind = kind;
       state.imageModal.url = url;
       state.imageModal.path = path || "";
       state.imageModal.scale = 1;
       state.imageModal.rotation = 0;
       state.imageModal.dirty = false;
+      state.imageModal.compareOverlay = compareOverlayMode;
       imageModalTitleEl.textContent = `${title}: ${item.filename}`;
-      imageModalImgEl.src = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      clearImageModalCompareOverlay();
+      if (compareOverlayMode) {
+        imageModalImgEl.removeAttribute("src");
+        imageModalCompareBeforeEl.style.backgroundImage = cssBackgroundImage(`${item.source_url}${item.source_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
+        imageModalCompareAfterEl.style.backgroundImage = cssBackgroundImage(`${item.latest_restore_url}${item.latest_restore_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
+        imageModalCompareOverlayEl.classList.add("visible");
+        imageModalCompareOverlayEl.setAttribute("aria-hidden", "false");
+        setCompareOverlaySplit(state.compareOverlay.split);
+      } else {
+        imageModalImgEl.src = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      }
       updateImageModalZoom();
       imageModalEl.classList.add("open");
       imageModalEl.setAttribute("aria-hidden", "false");
@@ -1024,12 +1280,15 @@
       imageModalEl.classList.remove("open");
       imageModalEl.setAttribute("aria-hidden", "true");
       imageModalImgEl.removeAttribute("src");
+      clearImageModalCompareOverlay();
       state.imageModal.kind = null;
       state.imageModal.url = "";
       state.imageModal.path = "";
       state.imageModal.scale = 1;
       state.imageModal.rotation = 0;
       state.imageModal.dirty = false;
+      state.imageModal.compareOverlay = false;
+      updateImageModalControls();
     }
 
     function rotateImageModal(delta) {
@@ -1043,7 +1302,7 @@
       if (!imageModalIsEditable() || !state.imageModal.dirty || !state.imageModal.path) {
         return;
       }
-      const response = await fetch("/api/rotate-save", {
+      const response = await fetch(apiUrl("/api/rotate-save"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1076,6 +1335,7 @@
 
     function currentConfigBody(includeApiKey = false) {
       const body = {
+        workflow: isHostedMode() ? "hosted" : "local",
         selected_folder: state.config?.selected_folder || "",
         prompt_text: document.getElementById("prompt-text").value,
         reference_image: document.getElementById("reference-image").value,
@@ -1096,7 +1356,9 @@
       const preserveEditing = Boolean(options.preserveEditing);
       const activeId = document.activeElement && document.activeElement.id ? document.activeElement.id : "";
       state.config = config;
-      selectedFolderEl.textContent = config.selected_folder || "No folder selected.";
+      selectedFolderEl.textContent = isHostedMode()
+        ? "Current browser session uploads"
+        : (config.selected_folder || "No folder selected.");
       if (!(preserveEditing && activeId === "prompt-text")) {
         document.getElementById("prompt-text").value = config.prompt_text || "";
       }
@@ -1117,19 +1379,31 @@
       document.getElementById("auto-include-restored").checked = Boolean(config.auto_include_restored);
       setReferencePreview(config.reference_preview_url || "", referencePreviewImageEl);
       setReferencePreview(config.reference_preview_url_2 || "", referencePreviewImageEl2);
+      updateAppModeUi();
       updateModeSummary();
     }
 
     function updateModeSummary() {
       const pause = Number(document.getElementById("auto-pause-seconds").value || 0);
+      const hasSource = isHostedMode() ? state.images.length > 0 : Boolean(state.config?.selected_folder);
       modeSummaryEl.textContent = pause > 0
         ? `Automatic mode pauses ${pause}s between photos.`
         : "Manual mode when pause is 0.";
-      startAutoButtonEl.disabled = pause <= 0 || state.busy || !state.config?.selected_folder || Boolean(state.processStatus?.running);
+      startAutoButtonEl.disabled = pause <= 0 || state.busy || !hasSource || Boolean(state.processStatus?.running);
+    }
+
+    async function loadAppInfo() {
+      const response = await fetch(apiUrl("/api/app-info"));
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Failed to load app info");
+      }
+      state.appMode = payload.app_mode || "local";
+      updateAppModeUi();
     }
 
     async function loadConfig() {
-      const response = await fetch("/api/config");
+      const response = await fetch(apiUrl("/api/config"));
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to load config");
@@ -1138,7 +1412,7 @@
     }
 
     async function saveConfig(showMessage = false) {
-      const response = await fetch("/api/config", {
+      const response = await fetch(apiUrl("/api/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(currentConfigBody(false)),
@@ -1179,9 +1453,11 @@
       if (!items.length) {
         const empty = document.createElement("div");
         empty.className = "placeholder";
-        empty.textContent = state.config?.selected_folder
-          ? "No images match the current filter."
-          : "Choose a source folder to load photos.";
+        empty.textContent = isHostedMode()
+          ? "Upload target photos to begin."
+          : (state.config?.selected_folder
+            ? "No images match the current filter."
+            : "Choose a source folder to load photos.");
         imageListEl.appendChild(empty);
         return;
       }
@@ -1224,8 +1500,12 @@
       const item = currentImage();
       if (!item) {
         selectedNameEl.textContent = "No image selected";
-        selectedMetaEl.textContent = "Choose a folder and select a photo to start.";
+        selectedMetaEl.textContent = isHostedMode()
+          ? "Upload target photos and select one to start."
+          : "Choose a folder and select a photo to start.";
         selectedOutputEl.textContent = "No output yet.";
+        restoredDownloadButtonEl.href = "#";
+        restoredDownloadButtonEl.classList.add("hidden");
         setPreview(originalImageEl, originalPlaceholderEl, null);
         setPreview(restoredImageEl, restoredPlaceholderEl, null);
         setPreview(compareImageEl, comparePlaceholderEl, null);
@@ -1244,11 +1524,19 @@
       setPreview(originalImageEl, originalPlaceholderEl, item.source_url);
       setPreview(restoredImageEl, restoredPlaceholderEl, item.latest_restore_url);
       setPreview(compareImageEl, comparePlaceholderEl, item.compare_url);
+      if (item.latest_restore_url) {
+        restoredDownloadButtonEl.href = item.latest_restore_url;
+        restoredDownloadButtonEl.download = item.latest_restore_name || "restored.png";
+        restoredDownloadButtonEl.classList.remove("hidden");
+      } else {
+        restoredDownloadButtonEl.href = "#";
+        restoredDownloadButtonEl.classList.add("hidden");
+      }
       restoreButtonEl.disabled = state.busy || Boolean(state.processStatus?.running);
     }
 
     async function loadImages() {
-      if (!state.config?.selected_folder) {
+      if (!isHostedMode() && !state.config?.selected_folder) {
         state.images = [];
         state.selectedFilename = null;
         renderList();
@@ -1256,7 +1544,7 @@
         return;
       }
       statusLineEl.textContent = "Loading image list...";
-      const response = await fetch("/api/images");
+      const response = await fetch(apiUrl(`/api/images?workflow=${encodeURIComponent(isHostedMode() ? "hosted" : "local")}`));
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to load images");
@@ -1277,10 +1565,10 @@
         reader.onerror = () => reject(new Error("Failed to read reference image"));
         reader.readAsDataURL(file);
       });
-      const response = await fetch("/api/reference-upload", {
+      const response = await fetch(apiUrl("/api/reference-upload"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, data_url: dataUrl }),
+        body: JSON.stringify({ workflow: isHostedMode() ? "hosted" : "local", filename: file.name, data_url: dataUrl }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
@@ -1297,6 +1585,31 @@
       statusLineEl.textContent = `Reference uploaded: ${payload.filename}`;
     }
 
+    async function uploadTargetFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      statusLineEl.textContent = `Uploading ${files.length} target photo(s)...`;
+      for (const file of files) {
+        const reader = new FileReader();
+        const dataUrl = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+          reader.readAsDataURL(file);
+        });
+        const response = await fetch(apiUrl("/api/target-upload"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflow: "hosted", filename: file.name, data_url: dataUrl }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || `Failed to upload ${file.name}`);
+        }
+      }
+      await loadImages();
+      statusLineEl.textContent = `${files.length} target photo(s) uploaded.`;
+    }
+
     async function restoreCurrentImage() {
       const item = currentImage();
       if (!item || state.busy) {
@@ -1308,7 +1621,7 @@
       statusLineEl.textContent = `Restoring ${item.filename}...`;
       logEl.textContent = `Submitting ${item.filename} for historical family photo restoration...`;
       try {
-        const response = await fetch("/api/restore", {
+        const response = await fetch(apiUrl("/api/restore"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...currentConfigBody(true), filename: item.filename }),
@@ -1331,7 +1644,7 @@
     }
 
     async function loadFolderBrowser(path = "") {
-      const response = await fetch(`/api/folders?path=${encodeURIComponent(path)}`);
+      const response = await fetch(apiUrl(`/api/folders?workflow=local&path=${encodeURIComponent(path)}`));
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to load folders");
@@ -1385,7 +1698,7 @@
     }
 
     async function saveConfigWithFolder(folderPath) {
-      const response = await fetch("/api/config", {
+      const response = await fetch(apiUrl("/api/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...currentConfigBody(false), selected_folder: folderPath }),
@@ -1400,7 +1713,7 @@
     }
 
     async function loadProcessStatus() {
-      const response = await fetch("/api/process-status");
+      const response = await fetch(apiUrl("/api/process-status"));
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to load process status");
@@ -1425,7 +1738,8 @@
         processStatusEl.textContent = "Idle.";
       }
       stopAutoButtonEl.disabled = !status.running;
-      startAutoButtonEl.disabled = status.running || Number(document.getElementById("auto-pause-seconds").value || 0) <= 0 || !state.config?.selected_folder;
+      const hasSource = isHostedMode() ? state.images.length > 0 : Boolean(state.config?.selected_folder);
+      startAutoButtonEl.disabled = status.running || Number(document.getElementById("auto-pause-seconds").value || 0) <= 0 || !hasSource;
       if (status.last_result && status.last_result.filename) {
         logEl.textContent = status.last_result.message || `Automatic processing restored ${status.last_result.filename}.`;
       }
@@ -1453,7 +1767,7 @@
         statusLineEl.textContent = "Set pause above 0 to enable automatic processing.";
         return;
       }
-      const response = await fetch("/api/process-folder", {
+      const response = await fetch(apiUrl("/api/process-folder"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(currentConfigBody(true)),
@@ -1469,7 +1783,7 @@
     }
 
     async function stopAutomaticProcessing() {
-      const response = await fetch("/api/process-stop", { method: "POST" });
+      const response = await fetch(apiUrl("/api/process-stop"), { method: "POST" });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Failed to stop automatic processing");
@@ -1513,6 +1827,9 @@
     document.getElementById("auto-include-restored").addEventListener("change", queueAutosave);
 
     document.getElementById("browse-folder-button").addEventListener("click", openFolderModal);
+    document.getElementById("refresh-upload-button").addEventListener("click", () => loadImages().catch((error) => {
+      statusLineEl.textContent = error.message;
+    }));
     document.getElementById("close-folder-modal-button").addEventListener("click", closeFolderModal);
     browserUpButtonEl.addEventListener("click", () => {
       if (state.browserParent) {
@@ -1553,6 +1870,9 @@
     document.getElementById("choose-reference-button").addEventListener("click", () => {
       document.getElementById("reference-file-input").click();
     });
+    document.getElementById("choose-targets-button").addEventListener("click", () => {
+      document.getElementById("target-file-input").click();
+    });
     controlBoxEl.addEventListener("toggle", () => {
       try {
         window.localStorage.setItem(CONTROL_BOX_STORAGE_KEY, controlBoxEl.open ? "open" : "closed");
@@ -1585,16 +1905,49 @@
         event.target.value = "";
       }
     });
+    document.getElementById("target-file-input").addEventListener("change", async (event) => {
+      try {
+        await uploadTargetFiles(event.target.files);
+      } catch (error) {
+        statusLineEl.textContent = error.message;
+      } finally {
+        event.target.value = "";
+      }
+    });
     document.getElementById("restored-open-button").addEventListener("click", () => openImageModal("restored"));
     document.getElementById("original-open-button").addEventListener("click", () => openImageModal("original"));
     document.getElementById("compare-open-button").addEventListener("click", () => openImageModal("compare"));
     originalImageEl.addEventListener("click", () => openImageModal("original"));
     restoredImageEl.addEventListener("click", () => openImageModal("restored"));
     compareImageEl.addEventListener("click", () => openImageModal("compare"));
-    document.getElementById("image-modal-fit").addEventListener("click", () => setImageModalZoom(1));
-    document.getElementById("image-modal-zoom-out").addEventListener("click", () => setImageModalZoom(state.imageModal.scale - 0.25));
-    document.getElementById("image-modal-zoom-reset").addEventListener("click", () => setImageModalZoom(1));
-    document.getElementById("image-modal-zoom-in").addEventListener("click", () => setImageModalZoom(state.imageModal.scale + 0.25));
+    imageModalCompareRangeEl.addEventListener("input", (event) => {
+      setCompareOverlaySplit(event.target.value);
+    });
+    imageModalCompareOverlayEl.addEventListener("pointerdown", (event) => {
+      state.compareOverlay.modalPointerId = event.pointerId;
+      imageModalCompareOverlayEl.setPointerCapture(event.pointerId);
+      updateModalCompareFromPointer(event);
+    });
+    imageModalCompareOverlayEl.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== state.compareOverlay.modalPointerId) return;
+      updateModalCompareFromPointer(event);
+    });
+    imageModalCompareOverlayEl.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== state.compareOverlay.modalPointerId) return;
+      state.compareOverlay.modalPointerId = null;
+      imageModalCompareOverlayEl.releasePointerCapture(event.pointerId);
+    });
+    imageModalCompareOverlayEl.addEventListener("pointercancel", (event) => {
+      if (event.pointerId !== state.compareOverlay.modalPointerId) return;
+      state.compareOverlay.modalPointerId = null;
+    });
+    imageModalCompareOverlayEl.addEventListener("lostpointercapture", () => {
+      state.compareOverlay.modalPointerId = null;
+    });
+    imageModalFitEl.addEventListener("click", () => setImageModalZoom(1));
+    imageModalZoomOutEl.addEventListener("click", () => setImageModalZoom(state.imageModal.scale - 0.25));
+    imageModalZoomResetEl.addEventListener("click", () => setImageModalZoom(1));
+    imageModalZoomInEl.addEventListener("click", () => setImageModalZoom(state.imageModal.scale + 0.25));
     imageModalRotateLeftEl.addEventListener("click", () => rotateImageModal(-90));
     imageModalRotateRightEl.addEventListener("click", () => rotateImageModal(90));
     imageModalSaveEl.addEventListener("click", () => saveImageModalRotation().catch((error) => {
@@ -1625,6 +1978,7 @@
         } catch (error) {
           // Ignore storage failures; the default open state is acceptable.
         }
+        await loadAppInfo();
         await loadConfig();
         await loadImages();
         await loadProcessStatus();
