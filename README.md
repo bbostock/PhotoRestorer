@@ -44,6 +44,39 @@ Local behavior:
 - restored files saved beside originals as `_r01`, `_r02`, and so on
 - settings persisted in `family_restore_prompt_config.json`
 
+### Local first use
+
+When the local app opens for the first time:
+
+1. Enter your Gemini API key if you are not using a server-wide `GOOGLE_API_KEY`.
+2. Click `Browse Server Folders`.
+3. Choose the folder that contains the photos you want to work on.
+4. Select an image from the list.
+5. Optionally upload one or two clearer same-person reference photos.
+6. Adjust `Prompt`, `Extra note`, `Colorize`, `Overwrite latest _rNN`, and automatic-processing settings.
+7. Click `Restore Selected`.
+
+For local use, restored files are written beside the originals as:
+
+- `<stem>_r01.png`
+- `<stem>_r02.png`
+- and so on
+
+Automatic processing:
+
+- set `Auto pause seconds` to `0` for manual use
+- set it above `0` to process the folder sequentially with a pause between images
+
+### Example workflow
+
+Example of the local restoration workflow with the original, latest restored result, and compare panel visible:
+
+![PhotoRestorer local workflow example](docs/examples/local-workflow-example.png)
+
+Example of the compare overlay view for checking the restored result against the source image:
+
+![PhotoRestorer compare overlay example](docs/examples/overlay-compare-example.png)
+
 ## Hosted cPanel app
 
 Use this when the app is hosted for other users. In this mode:
@@ -54,6 +87,25 @@ Use this when the app is hosted for other users. In this mode:
 - no browsing of your server folders
 - uploaded files live only in a temporary server-side session area
 - restored results are downloaded individually
+
+### Hosted first use
+
+When the hosted app opens for the first time:
+
+1. Enter your own Gemini API key in the app.
+2. Click `Upload Target Photos` and choose the photo or photos you want to restore.
+3. Select one uploaded image from the list.
+4. Optionally upload one or two clearer same-person reference photos.
+5. Adjust `Prompt`, `Extra note`, `Colorize`, `Overwrite latest _rNN`, and automatic-processing settings.
+6. Click `Restore Selected`.
+7. Use the `Download` button on the restored panel to save the result.
+
+Hosted behavior:
+
+- uploaded target and reference images are tied to the current browser session
+- users do not browse server folders
+- users bring their own Gemini API key
+- restored outputs are downloaded individually rather than written into a server photo folder
 
 ### HostPresto / cPanel values
 
@@ -143,6 +195,21 @@ For the hosted app, the recommended setup is:
 - each user enters their own Gemini API key in the app
 
 The Gemini API key field is stored only in that user's browser and is sent only with that user's restore requests.
+
+### Prompt and reference guidance
+
+For both local and hosted use:
+
+- the target photo defines the layout, pose, framing, and scene
+- same-person reference photos are for identity, hair, clothing, and person detail only
+- references should not be used to replace the target photo's composition
+- use `Extra note` when you need to name the people and clarify who is where in the target image
+
+A good pattern for `Extra note` is:
+
+```text
+The target photo contains Mum, Bill (2), Sue (4), and Peter (6). Keep the exact layout and positions from the target image. Use the reference photos only to recover the appearance of these same people.
+```
 
 ## Notes
 
