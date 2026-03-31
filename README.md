@@ -111,13 +111,13 @@ Hosted behavior:
 - users bring their own Gemini API key
 - restored outputs are downloaded individually rather than written into a server photo folder
 
-### HostPresto / cPanel values
+### cPanel values
 
-These are the values that worked with HostPresto's CloudLinux/LiteSpeed setup:
+These are the values that worked on a cPanel / CloudLinux / LiteSpeed host:
 
 - `Python version`: `3.12.12` or the exact Python 3 version you intend to keep
 - `Application root`: `public_html/photorestorer`
-- `Application URL`: `bostock.com / photorestorer`
+- `Application URL`: `your-domain.example / photorestorer`
 - `Application startup file`: `passenger_wsgi.py`
 - `Application Entry point`: `application`
 
@@ -139,7 +139,7 @@ Upload these files into `/home/<cpanel-user>/public_html/photorestorer`:
 
 Do not upload `family_restore_prompt_config.json` for the hosted app.
 
-### HostPresto deployment order
+### cPanel deployment order
 
 1. Create the Python app in cPanel with the values above.
 2. Wait for cPanel to create the app root and virtualenv.
@@ -160,7 +160,7 @@ pip install -r requirements.txt
 
 ### Required `.htaccess` Passenger mapping
 
-On HostPresto, the Python app did not always write the Passenger directives correctly. If the site shows a directory listing instead of the app, make sure `/home/<cpanel-user>/public_html/photorestorer/.htaccess` contains:
+On some cPanel / CloudLinux / LiteSpeed hosts, the Python app does not always write the Passenger directives correctly. If the site shows a directory listing instead of the app, make sure `/home/<cpanel-user>/public_html/photorestorer/.htaccess` contains:
 
 ```apache
 PassengerAppRoot "/home/<cpanel-user>/public_html/photorestorer"
@@ -178,7 +178,7 @@ mkdir -p /home/<cpanel-user>/public_html/photorestorer/tmp
 touch /home/<cpanel-user>/public_html/photorestorer/tmp/restart.txt
 ```
 
-### Debugging HostPresto failures
+### Debugging cPanel failures
 
 If the hosted app returns `503`, the first file to inspect is:
 
