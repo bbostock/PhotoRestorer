@@ -1280,8 +1280,10 @@
       if (compareOverlayMode) {
         setCompareOverlaySplit(50);
         imageModalImgEl.removeAttribute("src");
-        imageModalCompareBeforeEl.style.backgroundImage = cssBackgroundImage(`${item.source_url}${item.source_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
-        imageModalCompareAfterEl.style.backgroundImage = cssBackgroundImage(`${item.latest_restore_url}${item.latest_restore_url.includes("?") ? "&" : "?"}v=${Date.now()}`);
+        const beforeUrl = `${item.source_url}${item.source_url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        const afterUrl = `${item.latest_restore_url}${item.latest_restore_url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        imageModalCompareBeforeEl.style.backgroundImage = cssBackgroundImage(beforeUrl);
+        imageModalCompareAfterEl.style.backgroundImage = cssBackgroundImage(afterUrl);
         imageModalCompareOverlayEl.classList.add("visible");
         imageModalCompareOverlayEl.setAttribute("aria-hidden", "false");
       } else {
