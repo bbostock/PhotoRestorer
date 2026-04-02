@@ -305,6 +305,8 @@
 
     .control-box-body {
       padding: 0 2px 2px;
+      max-height: min(42dvh, 460px);
+      overflow: auto;
     }
 
     .config-card {
@@ -487,9 +489,12 @@
 
     .compare-overlay {
       --compare-split: 50%;
-      position: absolute;
-      inset: 0;
+      position: relative;
       display: none;
+      flex: 0 0 auto;
+      width: var(--compare-stage-width, 100%);
+      height: var(--compare-stage-height, 100%);
+      margin: auto;
       z-index: 1;
       user-select: none;
       touch-action: none;
@@ -508,7 +513,7 @@
       display: block;
       background-position: center;
       background-repeat: no-repeat;
-      background-size: contain;
+      background-size: 100% 100%;
       pointer-events: none;
     }
 
@@ -741,11 +746,10 @@
     }
 
     .image-modal-frame.compare-mode {
-      position: relative;
-      overflow: hidden;
-      align-items: stretch;
-      justify-content: stretch;
-      padding: 0;
+      overflow: auto;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
       background: rgba(235, 230, 223, 0.92);
     }
 
@@ -1081,6 +1085,8 @@
         url: "",
         path: "",
         compareOverlay: false,
+        compareNaturalWidth: 0,
+        compareNaturalHeight: 0,
       },
       compareOverlay: {
         split: 50,
@@ -1201,6 +1207,57 @@
       return escaped ? `url("${escaped}")` : "";
     }
 
+    function setCompareOverlayStageSize(width, height) {
+      imageModalCompareOverlayEl.style.setProperty("--compare-stage-width", `${Math.max(1, width)}px`);
+      imageModalCompareOverlayEl.style.setProperty("--compare-stage-height", `${Math.max(1, height)}px`);
+    }
+
+    function getFrameContentSize() {
+      const styles = window.getComputedStyle(imageModalFrameEl);
+      const paddingX = parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
+      const paddingY = parseFloat(styles.paddingTop || "0") + parseFloat(styles.paddingBottom || "0");
+      return {
+        width: Math.max(1, imageModalFrameEl.clientWidth - paddingX),
+        height: Math.max(1, imageModalFrameEl.clientHeight - paddingY),
+      };
+    }
+
+    function updateCompareOverlayViewport() {
+      const naturalWidth = state.imageModal.compareNaturalWidth;
+      const naturalHeight = state.imageModal.compareNaturalHeight;
+      if (!state.imageModal.compareOverlay || !naturalWidth || !naturalHeight) return;
+      const frameSize = getFrameContentSize();
+      const fitScale = Math.min(frameSize.width / naturalWidth, frameSize.height / naturalHeight);
+      const baseWidth = naturalWidth * fitScale;
+      const baseHeight = naturalHeight * fitScale;
+      setCompareOverlayStageSize(baseWidth * state.imageModal.scale, baseHeight * state.imageModal.scale);
+    }
+
+    function loadImageDimensions(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => reject(new Error("Failed to load compare image"));
+        img.src = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      });
+    }
+
+    async function ensureCompareNaturalSize(url) {
+      if (state.imageModal.compareNaturalWidth && state.imageModal.compareNaturalHeight) {
+        updateCompareOverlayViewport();
+        return;
+      }
+      try {
+        const size = await loadImageDimensions(url);
+        if (!state.imageModal.compareOverlay || state.imageModal.url !== url) return;
+        state.imageModal.compareNaturalWidth = size.width;
+        state.imageModal.compareNaturalHeight = size.height;
+        updateCompareOverlayViewport();
+      } catch (error) {
+        statusLineEl.textContent = error.message;
+      }
+    }
+
     function setCompareOverlaySplit(value) {
       const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
       state.compareOverlay.split = clamped;
@@ -1221,6 +1278,8 @@
       imageModalCompareOverlayEl.setAttribute("aria-hidden", "true");
       imageModalCompareBeforeEl.style.backgroundImage = "";
       imageModalCompareAfterEl.style.backgroundImage = "";
+      imageModalCompareOverlayEl.style.removeProperty("--compare-stage-width");
+      imageModalCompareOverlayEl.style.removeProperty("--compare-stage-height");
       imageModalCompareControlsEl.classList.add("hidden");
     }
 
@@ -1233,11 +1292,6 @@
       const compareOverlayMode = Boolean(state.imageModal.compareOverlay);
       imageModalFrameEl.classList.toggle("compare-mode", compareOverlayMode);
       imageModalImgEl.classList.toggle("hidden", compareOverlayMode);
-      imageModalFitEl.classList.toggle("hidden", compareOverlayMode);
-      imageModalZoomOutEl.classList.toggle("hidden", compareOverlayMode);
-      imageModalZoomResetEl.classList.toggle("hidden", compareOverlayMode);
-      imageModalZoomInEl.classList.toggle("hidden", compareOverlayMode);
-      imageModalZoomLabelEl.classList.toggle("hidden", compareOverlayMode);
       imageModalRotateLeftEl.classList.toggle("hidden", !editable || compareOverlayMode);
       imageModalRotateRightEl.classList.toggle("hidden", !editable || compareOverlayMode);
       imageModalSaveEl.classList.toggle("hidden", !(editable && state.imageModal.dirty && !compareOverlayMode));
@@ -1245,7 +1299,9 @@
     }
 
     function updateImageModalZoom() {
-      if (!state.imageModal.compareOverlay) {
+      if (state.imageModal.compareOverlay) {
+        updateCompareOverlayViewport();
+      } else {
         imageModalImgEl.style.transform = `rotate(${state.imageModal.rotation}deg) scale(${state.imageModal.scale})`;
       }
       imageModalZoomLabelEl.textContent = `${Math.round(state.imageModal.scale * 100)}%`;
@@ -1253,8 +1309,8 @@
     }
 
     function setImageModalZoom(scale) {
-      if (state.imageModal.compareOverlay) return;
-      state.imageModal.scale = Math.max(0.5, Math.min(4, Number(scale.toFixed(2))));
+      const minScale = state.imageModal.compareOverlay ? 1 : 0.5;
+      state.imageModal.scale = Math.max(minScale, Math.min(4, Number(scale.toFixed(2))));
       updateImageModalZoom();
     }
 
@@ -1269,12 +1325,14 @@
       const path = kind === "original" ? item.source_path : kind === "restored" ? item.latest_restore_path : "";
       if (!url && !compareOverlayMode) return;
       state.imageModal.kind = kind;
-      state.imageModal.url = url;
+      state.imageModal.url = compareOverlayMode ? item.source_url : url;
       state.imageModal.path = path || "";
       state.imageModal.scale = 1;
       state.imageModal.rotation = 0;
       state.imageModal.dirty = false;
       state.imageModal.compareOverlay = compareOverlayMode;
+      state.imageModal.compareNaturalWidth = 0;
+      state.imageModal.compareNaturalHeight = 0;
       imageModalTitleEl.textContent = `${title}: ${item.filename}`;
       clearImageModalCompareOverlay();
       if (compareOverlayMode) {
@@ -1292,6 +1350,17 @@
       updateImageModalZoom();
       imageModalEl.classList.add("open");
       imageModalEl.setAttribute("aria-hidden", "false");
+      if (compareOverlayMode) {
+        const knownWidth = originalImageEl.naturalWidth || restoredImageEl.naturalWidth;
+        const knownHeight = originalImageEl.naturalHeight || restoredImageEl.naturalHeight;
+        if (knownWidth && knownHeight) {
+          state.imageModal.compareNaturalWidth = knownWidth;
+          state.imageModal.compareNaturalHeight = knownHeight;
+          updateCompareOverlayViewport();
+        } else {
+          ensureCompareNaturalSize(item.source_url);
+        }
+      }
     }
 
     function closeImageModal() {
@@ -1306,6 +1375,8 @@
       state.imageModal.rotation = 0;
       state.imageModal.dirty = false;
       state.imageModal.compareOverlay = false;
+      state.imageModal.compareNaturalWidth = 0;
+      state.imageModal.compareNaturalHeight = 0;
       updateImageModalControls();
     }
 
@@ -1975,6 +2046,11 @@
     imageModalEl.addEventListener("click", (event) => {
       if (event.target === imageModalEl) {
         closeImageModal();
+      }
+    });
+    window.addEventListener("resize", () => {
+      if (imageModalEl.classList.contains("open")) {
+        updateImageModalZoom();
       }
     });
     document.addEventListener("keydown", (event) => {
