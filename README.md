@@ -1,5 +1,14 @@
 # PhotoRestorer
 
+PhotoRestorer is a web app for restoring old family photographs with Gemini image editing. It is designed for historical photos that may be faded, blurred, scratched, sepia, or monochrome, and it can optionally colorize them while trying to preserve the original people, pose, framing, and scene layout.
+
+The app supports two main workflows:
+
+- a local server-folder workflow where you browse a folder of photos and save restored files beside the originals
+- a hosted upload workflow where each user uploads their own photos and uses their own Gemini API key
+
+You can work one photo at a time, review the original and restored result side by side, use the overlay compare view, and optionally add same-person reference photos to help recover identity, hair, clothing, and other person details when the target photo is unclear.
+
 PhotoRestorer now has two deployment targets:
 
 - `family_restore_server.py`: local/LAN standalone server for your own server-folder workflow
