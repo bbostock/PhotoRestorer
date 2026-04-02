@@ -1422,6 +1422,13 @@
       }
     }
 
+    function handleReferencePathInput(inputEl, previewEl) {
+      if (!inputEl.value.trim()) {
+        setReferencePreview("", previewEl);
+      }
+      queueAutosave();
+    }
+
     function currentConfigBody(includeApiKey = false) {
       const body = {
         workflow: isHostedMode() ? "hosted" : "local",
@@ -1900,6 +1907,12 @@
 
     document.getElementById("prompt-text").addEventListener("input", queueAutosave);
     document.getElementById("extra-note").addEventListener("input", queueAutosave);
+    document.getElementById("reference-image").addEventListener("input", () => {
+      handleReferencePathInput(document.getElementById("reference-image"), referencePreviewImageEl);
+    });
+    document.getElementById("reference-image-2").addEventListener("input", () => {
+      handleReferencePathInput(document.getElementById("reference-image-2"), referencePreviewImageEl2);
+    });
     document.getElementById("colorize").addEventListener("change", queueAutosave);
     document.getElementById("overwrite-existing").addEventListener("change", queueAutosave);
     apiKeyInputEl.addEventListener("input", () => {
